@@ -1510,7 +1510,12 @@ void CServer::PumpNetwork()
 	{
 		if(Packet.m_Flags&NETSENDFLAG_CONNLESS)
 		{
-			if(m_Register.RegisterProcessPacket(&Packet, ResponseToken))
+			if(Packet.m_Flags&NETSENDFLAG_SIX)
+			{
+				if(m_Registers[REGISTER_SIX].RegisterProcessPacket(&Packet, ResponseToken))
+					continue;
+			}
+			else if(m_Registers[REGISTER_SEVEN].RegisterProcessPacket(&Packet, ResponseToken))
 				continue;
 
 			int ExtraToken = 0;
@@ -1682,7 +1687,8 @@ int CServer::LoadMap(const char *pMapName)
 
 void CServer::InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, CConfig *pConfig, IConsole *pConsole)
 {
-	m_Register.Init(pNetServer, pMasterServer, pConfig, pConsole);
+	for(int i = 0; i < NUM_REGISTERTYPES; i ++)
+		m_Registers[i].Init(i, pNetServer, pMasterServer, pConfig, pConsole);
 }
 
 void CServer::InitInterfaces(IKernel *pKernel)
@@ -1844,7 +1850,8 @@ int CServer::Run()
 			}
 
 			// master server stuff
-			m_Register.RegisterUpdate(m_NetServer.NetType());
+			for(int i = 0; i < NUM_REGISTERTYPES; i ++)
+				m_Registers[i].RegisterUpdate(m_NetServer.NetType());
 
 			PumpNetwork();
 

@@ -216,7 +216,7 @@ public:
 	int m_GeneratedRconPassword;
 
 	CDemoRecorder m_DemoRecorder;
-	CRegister m_Register;
+	CRegister m_Registers[NUM_REGISTERTYPES];
 
 	CServer();
 

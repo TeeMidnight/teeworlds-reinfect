@@ -300,7 +300,7 @@ int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct
 	
 	if(pPacket->m_Flags&NET_PACKETFLAG_CONNLESS)
 	{
-		SevenDown = ((pBuffer[0] & 0xff) == 1) || (pBuffer[0] == NET_HEADER_EXTENDED[0] && pBuffer[1] == NET_HEADER_EXTENDED[1]);
+		SevenDown = (pBuffer[0] & 0x3) != 1;
 		int Offset = SevenDown ? 6 : NET_PACKETHEADERSIZE_CONNLESS;
 		if(Size < Offset)
 		{

@@ -230,6 +230,8 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 			else if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONNLESS)
 			{
 				pChunk->m_Flags = NETSENDFLAG_CONNLESS;
+				if(SevenDown)
+					pChunk->m_Flags |= NETSENDFLAG_SIX;
 				pChunk->m_ClientID = -1;
 				pChunk->m_Address = Addr;
 				pChunk->m_DataSize = m_RecvUnpacker.m_Data.m_DataSize;

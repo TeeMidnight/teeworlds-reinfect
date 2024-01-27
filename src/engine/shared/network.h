@@ -54,6 +54,7 @@ enum
 	NETSENDFLAG_FLUSH=4,
 	// for 0.6
 	NETSENDFLAG_EXTENDED = 8,
+	NETSENDFLAG_SIX = 128, // a check flag only for six connless
 
 	NETSTATE_OFFLINE=0,
 	NETSTATE_CONNECTING,

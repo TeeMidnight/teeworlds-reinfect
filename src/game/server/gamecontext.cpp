@@ -292,10 +292,13 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *p
 	{
 		// send to the clients
 		Msg.m_TargetID = To;
-		if(Server()->IsSevenDown(ChatterClientID))
-			Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, ChatterClientID);
-		else 
-			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		if(ChatterClientID != -1)
+		{
+			if(Server()->IsSevenDown(ChatterClientID))
+				Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, ChatterClientID);
+			else
+				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		}
 
 		if(Server()->IsSevenDown(To))
 			Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, To);

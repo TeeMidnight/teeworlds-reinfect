@@ -962,6 +962,10 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 			if(Server()->ClientCountry(ClientID) != pMsg->m_Country)
 				NeedsUpdate = true;
 			Server()->SetClientCountry(ClientID, pMsg->m_Country);
+			pPlayer->m_TeeInfos.m_UseCustomColor = pMsg->m_UseCustomColor;
+			pPlayer->m_TeeInfos.m_ColorBody = pMsg->m_ColorBody;
+			pPlayer->m_TeeInfos.m_ColorFeet = pMsg->m_ColorFeet;
+			pPlayer->m_TeeInfos.FromSevenDown();
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 
@@ -1365,7 +1369,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
 				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
-			pPlayer->m_TeeInfos.ToSevenDown();
+			if(!Server()->IsSevenDown(ClientID))
+				pPlayer->m_TeeInfos.ToSevenDown();
 
 			// update all clients
 			for(int i = 0; i < MAX_CLIENTS; ++i)
@@ -1405,7 +1410,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
 				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
-			pPlayer->m_TeeInfos.ToSevenDown();
+			if(!Server()->IsSevenDown(ClientID))
+				pPlayer->m_TeeInfos.ToSevenDown();
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 

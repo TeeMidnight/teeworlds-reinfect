@@ -484,8 +484,8 @@ set_glob(ENGINE_SHARED GLOB src/engine/shared
   network.cpp
   network.h
   network_conn.cpp
-  network_console_conn.cpp
   network_console.cpp
+  network_console_conn.cpp
   network_server.cpp
   network_token.cpp
   packer.cpp

@@ -890,11 +890,12 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 {
 	const int ClientID = pPacket->m_ClientID;
 	CMsgUnpacker Unpacker(pPacket->m_pData, pPacket->m_DataSize);
-	if(Unpacker.Error())
-		return;
 
 	int Msg = Unpacker.Type();
 	int System = Unpacker.System();
+
+	if(Unpacker.Error())
+		return;
 
 	if(m_aClients[ClientID].m_SevenDown && (Msg = MsgFromSevenDown(Msg, System)) < 0)
 	{

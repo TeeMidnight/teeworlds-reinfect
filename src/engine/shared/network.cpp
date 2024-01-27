@@ -367,6 +367,7 @@ int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct
 			if(pPacket->m_Flags & 32)
 				Flags |= NET_PACKETFLAG_COMPRESSION;
 			pPacket->m_Flags = Flags;
+			pPacket->m_Token = NET_TOKEN_NONE;
 		}
 
 		pPacket->m_Ack = ((pBuffer[0]&0x3)<<8) | pBuffer[1];
@@ -431,7 +432,7 @@ void CNetBase::SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int Co
 	Construct.m_NumChunks = 0;
 	Construct.m_DataSize = 1+ExtraSize;
 	Construct.m_aChunkData[0] = ControlMsg;
-	if(SevenDown || ExtraSize > 0)
+	if(ExtraSize > 0)
 		mem_copy(&Construct.m_aChunkData[1], pExtra, ExtraSize);
 
 	// send the control message

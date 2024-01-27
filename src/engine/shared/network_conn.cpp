@@ -255,7 +255,7 @@ int CNetConnection::Feed(CNetPacketConstruct *pPacket, NETADDR *pAddr)
 
 	int64 Now = time_get();
 
-	if(pPacket->m_Token == NET_TOKEN_NONE || pPacket->m_Token != m_Token)
+	if(!m_SevenDown && (pPacket->m_Token == NET_TOKEN_NONE || pPacket->m_Token != m_Token))
 		return 0;
 
 	// check if resend is requested

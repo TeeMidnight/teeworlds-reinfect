@@ -483,7 +483,24 @@ void CGameContext::SendVoteSet(int Type, int ToClientID)
 		Msg.m_pDescription = "";
 		Msg.m_pReason = "";
 	}
-	if(Server()->IsSevenDown(ToClientID))
+	
+	if(ToClientID == -1)
+	{
+		for(int i = 0; i < MAX_CLIENTS; i ++)
+		{
+			if(Server()->IsSevenDown(i))
+			{
+				protocol6::CNetMsg_Sv_VoteSet Msg6;
+				Msg6.m_Timeout = Msg.m_Timeout;
+				Msg6.m_pDescription = Msg.m_pDescription;
+				Msg6.m_pReason = Msg.m_pReason;
+				Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, i);
+			}
+			else if(m_apPlayers[i])
+				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
+		}
+	}
+	else if(Server()->IsSevenDown(ToClientID))
 	{
 		protocol6::CNetMsg_Sv_VoteSet Msg6;
 		Msg6.m_Timeout = Msg.m_Timeout;

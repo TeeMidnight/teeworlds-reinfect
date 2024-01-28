@@ -149,7 +149,7 @@ static int PickupType(int Pickup)
 	case PICKUP_LASER:  
 		return protocol6::POWERUP_WEAPON;
 	case PICKUP_NINJA: 
-		return protocol6::POWERUP_HEALTH;
+		return protocol6::POWERUP_NINJA;
 	}
 	return 0;
 }

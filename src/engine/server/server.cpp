@@ -477,7 +477,7 @@ static CPacker* RepackMsg(CMsgPacker *pSource, int Protocol)
 				MsgId += 11;
 			else
 			{
-				dbg_msg("net", "DROP send sys %d", MsgId);
+				dbg_msg("net", "DROP send sys %d to 0.6", MsgId);
 				return nullptr;
 			}
 		}
@@ -517,11 +517,17 @@ int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 		Packet.m_Flags |= NETSENDFLAG_FLUSH;
 
 	CPacker *pPack[NUM_NETPROTOCOLS] = {nullptr, nullptr};
-	pPack[NETPROTOCOL_SEVEN] = RepackMsg(pMsg, NETPROTOCOL_SEVEN);
-	pPack[NETPROTOCOL_SIX] = RepackMsg(pMsg, NETPROTOCOL_SIX);
+	if(ClientID == -1)
+	{
+		for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
+			pPack[i] = RepackMsg(pMsg, i);
+	}else
+	{
+		pPack[m_aClients[ClientID].m_Protocol] = RepackMsg(pMsg, m_aClients[ClientID].m_Protocol);
+	}
 
 	// write message to demo recorder
-	if(!(Flags&MSGFLAG_NORECORD))
+	if(!(Flags&MSGFLAG_NORECORD) && pPack[NETPROTOCOL_SEVEN])
 		m_DemoRecorder.RecordMessage(pPack[NETPROTOCOL_SEVEN]->Data(), pPack[NETPROTOCOL_SEVEN]->Size());
 
 	if(!(Flags&MSGFLAG_NOSEND))
@@ -552,11 +558,9 @@ int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 		}
 	}
 
-	if(pPack[0])
-		delete pPack[0];
-	
-	if(pPack[1])
-		delete pPack[1];
+	for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
+		if(pPack[i])
+			delete pPack[i];
 
 	return 0;
 }
@@ -1592,19 +1596,69 @@ void CServer::ChangeMap(const char *pMap)
 	m_MapReload = str_comp(Config()->m_SvMap, m_aCurrentMap) != 0;
 }
 
-int CServer::LoadMap(const char *pMapName)
+static const char* GetMapTypeDir(int MapType)
+{
+	switch (MapType)
+	{
+		case CServer::MAPTYPE_SEVEN: return "maps";
+		case CServer::MAPTYPE_SIX: return "maps6";
+	}
+	return "maps"; // don't know what type is it 
+}
+
+int CServer::LoadMap(const char *pMapName, int MapType)
 {
 	char aBuf[IO_MAX_PATH_LENGTH];
-	str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
+	str_format(aBuf, sizeof(aBuf), "%s/%s.map", GetMapTypeDir(MapType), pMapName);
 
-	// check for valid standard map
-	if(!m_pMapChecker->ReadAndValidateMap(aBuf, IStorage::TYPE_ALL))
+	// check for valid standard map (based map type)
+	if(MapType == MAPTYPE_SEVEN && !m_pMapChecker->ReadAndValidateMap(aBuf, IStorage::TYPE_ALL))
 	{
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mapchecker", "invalid standard map");
 		return 0;
 	}
 
 	if(!m_pMap->Load(aBuf))
+		return 0;
+	
+	{
+		// get the sha256 and crc of the map
+		m_aMapInfos[MapType].m_MapSha256 = m_pMap->Sha256();
+		m_aMapInfos[MapType].m_MapCrc = m_pMap->Crc();
+		char aSha256[SHA256_MAXSTRSIZE];
+		sha256_str(m_aMapInfos[MapType].m_MapSha256, aSha256, sizeof(aSha256));
+		char aBufMsg[256];
+		str_format(aBufMsg, sizeof(aBufMsg), "%s sha256 is %s", aBuf, aSha256);
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
+		str_format(aBufMsg, sizeof(aBufMsg), "%s crc is %08x", aBuf, m_aMapInfos[MapType].m_MapCrc);
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
+	}
+
+	// load complete map into memory for download
+	{
+		IOHANDLE File = Storage()->OpenFile(aBuf, IOFLAG_READ, IStorage::TYPE_ALL);
+		m_aMapInfos[MapType].m_MapSize = (int)io_length(File);
+		if(m_aMapInfos[MapType].m_pMapData && !m_aMapInfos[MapType].m_DefaultMap) // if it's not use the same data as 0.7, free it.
+			mem_free(m_aMapInfos[MapType].m_pMapData);
+		m_aMapInfos[MapType].m_pMapData = (unsigned char *)mem_alloc(m_aMapInfos[MapType].m_MapSize);
+		io_read(File, m_aMapInfos[MapType].m_pMapData, m_aMapInfos[MapType].m_MapSize);
+		io_close(File);
+	}
+
+	m_aMapInfos[MapType].m_DefaultMap = false;
+
+	return 1;
+}
+
+int CServer::LoadMap(const char *pMapName)
+{
+	bool LoadSuccess[NUM_MAPTYPES - 1];
+	for(int i = NUM_MAPTYPES - 1; i > MAPTYPE_SEVEN; i --)
+	{
+		LoadSuccess[i - 1] = LoadMap(pMapName, i);
+	}
+	
+	if(!LoadMap(pMapName, NETPROTOCOL_SEVEN))
 		return 0;
 
 	// stop recording when we change map
@@ -1614,73 +1668,34 @@ int CServer::LoadMap(const char *pMapName)
 	// reinit snapshot ids
 	m_IDPool.TimeoutIDs();
 
+	for(int i = NUM_MAPTYPES - 1; i > MAPTYPE_SEVEN; i --)
 	{
-		// get the sha256 and crc of the map
-		m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256 = m_pMap->Sha256();
-		m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc = m_pMap->Crc();
-		char aSha256[SHA256_MAXSTRSIZE];
-		sha256_str(m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256, aSha256, sizeof(aSha256));
-		char aBufMsg[256];
-		str_format(aBufMsg, sizeof(aBufMsg), "%s sha256 is %s", aBuf, aSha256);
-		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
-		str_format(aBufMsg, sizeof(aBufMsg), "%s crc is %08x", aBuf, m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc);
-		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
-	}
-
-	// load complete map into memory for download
-	{
-		IOHANDLE File = Storage()->OpenFile(aBuf, IOFLAG_READ, IStorage::TYPE_ALL);
-		m_aMapInfos[MAPTYPE_SEVEN].m_MapSize = (int)io_length(File);
-		if(m_aMapInfos[MAPTYPE_SEVEN].m_pMapData)
-			mem_free(m_aMapInfos[MAPTYPE_SEVEN].m_pMapData);
-		m_aMapInfos[MAPTYPE_SEVEN].m_pMapData = (unsigned char *)mem_alloc(m_aMapInfos[MAPTYPE_SEVEN].m_MapSize);
-		io_read(File, m_aMapInfos[MAPTYPE_SEVEN].m_pMapData, m_aMapInfos[MAPTYPE_SEVEN].m_MapSize);
-		io_close(File);
-	}
-
-	// map 6
-	{
-		char aBuf[IO_MAX_PATH_LENGTH];
-		str_format(aBuf, sizeof(aBuf), "maps6/%s.map", pMapName);
-		if(m_aMapInfos[MAPTYPE_SIX].m_pMapData)
-			mem_free(m_aMapInfos[MAPTYPE_SIX].m_pMapData);
-
-		if(!m_pMap->Load(aBuf))
+		if(LoadSuccess[i - 1])
+			continue;
 		{
-			m_aMapInfos[MAPTYPE_SIX].m_MapSha256 = m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256;
-			m_aMapInfos[MAPTYPE_SIX].m_MapCrc = m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc;
-			m_aMapInfos[MAPTYPE_SIX].m_MapSize = m_aMapInfos[MAPTYPE_SEVEN].m_MapSize;
-			m_aMapInfos[MAPTYPE_SIX].m_pMapData = (unsigned char *)mem_alloc(m_aMapInfos[MAPTYPE_SIX].m_MapSize);
-			mem_copy(m_aMapInfos[MAPTYPE_SIX].m_pMapData, m_aMapInfos[MAPTYPE_SEVEN].m_pMapData, m_aMapInfos[MAPTYPE_SIX].m_MapSize);
-			
-			Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", "couldn't find map 0.6 version, use 0.7");
-		}else
-		{
-			// get the sha256 and crc of the map
-			m_aMapInfos[MAPTYPE_SIX].m_MapSha256 = m_pMap->Sha256();
-			m_aMapInfos[MAPTYPE_SIX].m_MapCrc = m_pMap->Crc();
-			char aSha256[SHA256_MAXSTRSIZE];
-			sha256_str(m_aMapInfos[MAPTYPE_SIX].m_MapSha256, aSha256, sizeof(aSha256));
-			char aBufMsg[256];
-			str_format(aBufMsg, sizeof(aBufMsg), "%s sha256 is %s", aBuf, aSha256);
-			Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
-			str_format(aBufMsg, sizeof(aBufMsg), "%s crc is %08x", aBuf, m_aMapInfos[MAPTYPE_SIX].m_MapCrc);
-			Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
-
-			// load complete map into memory for download
-			{
-				IOHANDLE File = Storage()->OpenFile(aBuf, IOFLAG_READ, IStorage::TYPE_ALL);
-				m_aMapInfos[MAPTYPE_SIX].m_MapSize = (int)io_length(File);
-				m_aMapInfos[MAPTYPE_SIX].m_pMapData = (unsigned char *)mem_alloc(m_aMapInfos[MAPTYPE_SIX].m_MapSize);
-				io_read(File, m_aMapInfos[MAPTYPE_SIX].m_pMapData, m_aMapInfos[MAPTYPE_SIX].m_MapSize);
-				io_close(File);
-			}
+			// copy the sha256 and crc of the map
+			m_aMapInfos[i].m_MapSha256 = m_pMap->Sha256();
+			m_aMapInfos[i].m_MapCrc = m_pMap->Crc();
 		}
+
+		// copy complete map memory for download
+		{
+			m_aMapInfos[i].m_MapSize = m_aMapInfos[MAPTYPE_SEVEN].m_MapSize;
+			if(m_aMapInfos[i].m_pMapData && !m_aMapInfos[i].m_DefaultMap) // if it's not use the same data as 0.7, free it.
+				mem_free(m_aMapInfos[i].m_pMapData);
+			m_aMapInfos[i].m_pMapData = m_aMapInfos[MAPTYPE_SEVEN].m_pMapData;
+		}
+
+		char aBufMsg[32];
+		str_format(aBufMsg, sizeof(aBufMsg), "%s use 0.7 map", GetMapTypeDir(i));
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg);
+
+		m_aMapInfos[i].m_DefaultMap = true;
 	}
-	str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
-	m_pMap->Load(aBuf); // load back
 
 	str_copy(m_aCurrentMap, pMapName, sizeof(m_aCurrentMap));
+	
+	m_MapReload = false;
 
 	return 1;
 }

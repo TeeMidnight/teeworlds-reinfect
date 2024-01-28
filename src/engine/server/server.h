@@ -185,13 +185,16 @@ public:
 		unsigned m_MapCrc;
 		unsigned char *m_pMapData;
 		int m_MapSize;
+		// add a check to make mapinfo use the same map data in memory
+		bool m_DefaultMap;
 
 		void Reset()
 		{
-			if(m_pMapData)
+			if(m_pMapData && !m_DefaultMap) // if it's not use the same data as 0.7, free it.
 				mem_free(m_pMapData);
 			m_pMapData = 0;
 			m_MapSize = 0;
+			m_DefaultMap = false;
 		}
 	};
 
@@ -276,6 +279,7 @@ public:
 
 	virtual void ChangeMap(const char *pMap);
 	const char *GetMapName();
+	int LoadMap(const char *pMapName, int MapType);
 	int LoadMap(const char *pMapName);
 
 	void InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, CConfig *pConfig, IConsole *pConsole);

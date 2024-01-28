@@ -5,6 +5,7 @@
 
 #include <engine/console.h>
 #include <engine/server.h>
+#include <engine/protocol.h>
 
 #include <game/commands.h>
 #include <game/layers.h>
@@ -197,8 +198,7 @@ public:
 
 	virtual const char *GameType() const;
 	virtual const char *Version() const;
-	virtual const char *NetVersion() const;
-	virtual const char *NetVersion6() const;
+	virtual const char *NetVersion(int Protocol) const;
 	virtual const char *NetVersionHashUsed() const;
 	virtual const char *NetVersionHashReal() const;
 };

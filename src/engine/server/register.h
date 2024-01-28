@@ -5,13 +5,6 @@
 
 #include <engine/shared/network.h>
 
-enum // TODO: move to protocol controller
-{
-	REGISTER_SIX,
-	REGISTER_SEVEN,
-	NUM_REGISTERTYPES,
-};
-
 class CRegister
 {
 	enum

@@ -143,10 +143,10 @@ public:
 
 		int MapType() const 
 		{
-			return m_SevenDown ? MAPTYPE_SIX : MAPTYPE_SEVEN;
+			return (m_Protocol == NETPROTOCOL_SIX) ? MAPTYPE_SIX : MAPTYPE_SEVEN;
 		}
 
-		bool m_SevenDown;
+		int m_Protocol;
 	};
 
 	CClient m_aClients[MAX_CLIENTS];
@@ -174,8 +174,8 @@ public:
 	{
 		MAP_CHUNK_SIZE=NET_MAX_PAYLOAD-NET_MAX_CHUNKHEADERSIZE-4, // msg type
 
-		MAPTYPE_SIX = 0,
-		MAPTYPE_SEVEN,
+		MAPTYPE_SEVEN = 0,
+		MAPTYPE_SIX,
 		NUM_MAPTYPES
 	};
 
@@ -216,7 +216,7 @@ public:
 	int m_GeneratedRconPassword;
 
 	CDemoRecorder m_DemoRecorder;
-	CRegister m_Registers[NUM_REGISTERTYPES];
+	CRegister m_Registers[NUM_NETPROTOCOLS];
 
 	CServer();
 
@@ -251,7 +251,7 @@ public:
 
 	void DoSnapshot();
 
-	static int NewClientCallback(int ClientID, void *pUser, bool SevenDwon);
+	static int NewClientCallback(int ClientID, void *pUser, int Protocol);
 	static int DelClientCallback(int ClientID, const char *pReason, void *pUser);
 
 	void SendMap(int ClientID);
@@ -311,7 +311,7 @@ public:
 	virtual void *SnapNewItem(int Type, int ID, int Size);
 	void SnapSetStaticsize(int ItemType, int Size);
 
-	virtual bool IsSevenDown(int ClientID) const override { return ClientID != -1 && m_aClients[ClientID].m_SevenDown; }
+	virtual bool IsSevenDown(int ClientID) const override { return ClientID != -1 && m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX; }
 };
 
 #endif

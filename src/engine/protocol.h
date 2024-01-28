@@ -1,0 +1,12 @@
+#ifndef ENGINE_PROTOCOL_H
+#define ENGINE_PROTOCOL_H
+
+enum NetProtocolType
+{
+	NETPROTOCOL_UNKNOWN = -1,
+	NETPROTOCOL_SEVEN = 0, // based version
+	NETPROTOCOL_SIX,
+	NUM_NETPROTOCOLS,
+};
+
+#endif

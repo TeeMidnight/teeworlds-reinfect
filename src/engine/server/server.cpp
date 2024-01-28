@@ -342,7 +342,7 @@ int CServer::Init()
 		m_aClients[i].m_aClan[0] = 0;
 		m_aClients[i].m_Country = -1;
 		m_aClients[i].m_Snapshots.Init();
-		m_aClients[i].m_SevenDown = false;
+		m_aClients[i].m_Protocol = NETPROTOCOL_UNKNOWN;
 	}
 
 	m_CurrentGameTick = 0;
@@ -458,10 +458,10 @@ void CServer::InitRconPasswordIfUnset()
 	m_GeneratedRconPassword = 1;
 }
 
-static CPacker* RepackMsg(CMsgPacker *pSource, bool SevenDown)
+static CPacker* RepackMsg(CMsgPacker *pSource, int Protocol)
 {
 	int MsgId = pSource->Type();
-	if(SevenDown && !pSource->NoRepack())
+	if((Protocol == NETPROTOCOL_SIX) && !pSource->NoRepack())
 	{
 		if(pSource->System())
 		{
@@ -516,13 +516,13 @@ int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 	if(Flags&MSGFLAG_FLUSH)
 		Packet.m_Flags |= NETSENDFLAG_FLUSH;
 
-	CPacker *pPack[2] = {nullptr, nullptr};
-	pPack[0] = RepackMsg(pMsg, 0);
-	pPack[1] = RepackMsg(pMsg, 1);
+	CPacker *pPack[NUM_NETPROTOCOLS] = {nullptr, nullptr};
+	pPack[NETPROTOCOL_SEVEN] = RepackMsg(pMsg, NETPROTOCOL_SEVEN);
+	pPack[NETPROTOCOL_SIX] = RepackMsg(pMsg, NETPROTOCOL_SIX);
 
 	// write message to demo recorder
 	if(!(Flags&MSGFLAG_NORECORD))
-		m_DemoRecorder.RecordMessage(pPack[0]->Data(), pPack[0]->Size());
+		m_DemoRecorder.RecordMessage(pPack[NETPROTOCOL_SEVEN]->Data(), pPack[NETPROTOCOL_SEVEN]->Size());
 
 	if(!(Flags&MSGFLAG_NOSEND))
 	{
@@ -533,21 +533,21 @@ int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 			{
 				if(m_aClients[i].m_State == CClient::STATE_INGAME && !m_aClients[i].m_Quitting)
 				{
-					if(!pPack[m_aClients[i].m_SevenDown])
+					if(!pPack[m_aClients[i].m_Protocol])
 						continue;
 						
 					Packet.m_ClientID = i;
-					Packet.m_pData = pPack[m_aClients[i].m_SevenDown]->Data();
-					Packet.m_DataSize = pPack[m_aClients[i].m_SevenDown]->Size();
+					Packet.m_pData = pPack[m_aClients[i].m_Protocol]->Data();
+					Packet.m_DataSize = pPack[m_aClients[i].m_Protocol]->Size();
 					m_NetServer.Send(&Packet);
 				}
 			}
 		}
-		else if(pPack[m_aClients[ClientID].m_SevenDown])
+		else if(pPack[m_aClients[ClientID].m_Protocol])
 		{
 			Packet.m_ClientID = ClientID;
-			Packet.m_pData = pPack[m_aClients[ClientID].m_SevenDown]->Data();
-			Packet.m_DataSize = pPack[m_aClients[ClientID].m_SevenDown]->Size();
+			Packet.m_pData = pPack[m_aClients[ClientID].m_Protocol]->Data();
+			Packet.m_DataSize = pPack[m_aClients[ClientID].m_Protocol]->Size();
 			m_NetServer.Send(&Packet);
 		}
 	}
@@ -607,7 +607,7 @@ void CServer::DoSnapshot()
 			int DeltaTick = -1;
 			int DeltaSize;
 
-			m_SnapshotBuilder.Init(m_aClients[i].m_SevenDown);
+			m_SnapshotBuilder.Init(m_aClients[i].m_Protocol);
 
 			GameServer()->OnSnap(i);
 
@@ -701,7 +701,7 @@ void CServer::DoSnapshot()
 }
 
 
-int CServer::NewClientCallback(int ClientID, void *pUser, bool SevenDwon)
+int CServer::NewClientCallback(int ClientID, void *pUser, int Protocol)
 {
 	CServer *pThis = (CServer *)pUser;
 
@@ -724,7 +724,7 @@ int CServer::NewClientCallback(int ClientID, void *pUser, bool SevenDwon)
 	pThis->m_aClients[ClientID].m_Latency = 0;
 	pThis->m_aClients[ClientID].Reset();
 
-	pThis->m_aClients[ClientID].m_SevenDown = SevenDwon;
+	pThis->m_aClients[ClientID].m_Protocol = Protocol;
 
 	return 0;
 }
@@ -756,7 +756,7 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientID].m_MapListEntryToSend = -1;
 	pThis->m_aClients[ClientID].m_NoRconNote = false;
 	pThis->m_aClients[ClientID].m_Quitting = false;
-	pThis->m_aClients[ClientID].m_SevenDown = false;
+	pThis->m_aClients[ClientID].m_Protocol = NETPROTOCOL_UNKNOWN;
 	pThis->m_aClients[ClientID].m_Snapshots.PurgeAll();
 	return 0;
 }
@@ -769,7 +769,7 @@ void CServer::SendMap(int ClientID)
 	Msg.AddString(GetMapName(), 0);
 	Msg.AddInt(pInfo->m_MapCrc);
 	Msg.AddInt(pInfo->m_MapSize);
-	if(!m_aClients[ClientID].m_SevenDown)
+	if(m_aClients[ClientID].m_Protocol == NETPROTOCOL_SEVEN)
 	{
 		Msg.AddInt(m_MapChunksPerRequest);
 		Msg.AddInt(MAP_CHUNK_SIZE);
@@ -897,7 +897,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 	if(Unpacker.Error())
 		return;
 
-	if(m_aClients[ClientID].m_SevenDown && (Msg = MsgFromSevenDown(Msg, System)) < 0)
+	if((m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX) && (Msg = MsgFromSevenDown(Msg, System)) < 0)
 	{
 		return;
 	}
@@ -910,11 +910,11 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 			if((pPacket->m_Flags&NET_CHUNKFLAG_VITAL) != 0 && m_aClients[ClientID].m_State == CClient::STATE_AUTH)
 			{
 				const char *pVersion = Unpacker.GetString(CUnpacker::SANITIZE_CC);
-				if(str_comp(pVersion, GameServer()->NetVersion6()) != 0 && str_comp(pVersion, GameServer()->NetVersion()) != 0)
+				if(str_comp(pVersion, GameServer()->NetVersion(m_aClients[ClientID].m_Protocol)))
 				{
 					// wrong version
 					char aReason[256];
-					str_format(aReason, sizeof(aReason), "Wrong version. Server is running '%s' and client '%s'", m_aClients[ClientID].m_SevenDown ? GameServer()->NetVersion6() : GameServer()->NetVersion(), pVersion);
+					str_format(aReason, sizeof(aReason), "Wrong version. Server is running '%s' and client '%s'", GameServer()->NetVersion(m_aClients[ClientID].m_Protocol), pVersion);
 					m_NetServer.Drop(ClientID, aReason);
 					return;
 				}
@@ -927,7 +927,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					return;
 				}
 
-				if(m_aClients[ClientID].m_SevenDown)
+				if(m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX)
 					m_aClients[ClientID].m_Version = 0x0604;
 				else 
 					m_aClients[ClientID].m_Version = Unpacker.GetInt();
@@ -940,7 +940,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 		{
 			if((pPacket->m_Flags&NET_CHUNKFLAG_VITAL) != 0 && (m_aClients[ClientID].m_State == CClient::STATE_CONNECTING || m_aClients[ClientID].m_State == CClient::STATE_CONNECTING_AS_SPEC))
 			{
-				int ChunkSize = m_aClients[ClientID].m_SevenDown ? 1024 - 128 : MAP_CHUNK_SIZE;
+				int ChunkSize = (m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX) ? 1024 - 128 : MAP_CHUNK_SIZE;
 
 				// send map chunks
 				for(int i = 0; i < m_MapChunksPerRequest && m_aClients[ClientID].m_MapChunk >= 0; ++i)
@@ -958,7 +958,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 						m_aClients[ClientID].m_MapChunk++;
 
 					CMsgPacker Msg(NETMSG_MAP_DATA, true);
-					if(m_aClients[ClientID].m_SevenDown)
+					if(m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX)
 					{
 						Msg.AddInt(m_aClients[ClientID].m_MapChunk == -1);
 						Msg.AddInt(m_aMapInfos[m_aClients[ClientID].MapType()].m_MapCrc);
@@ -1109,7 +1109,6 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 						Msg.AddInt(1); //authed
 						Msg.AddInt(1); //cmdlist
 						SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
-						dbg_msg("yee", "sended");
 					}else
 					{
 						CMsgPacker Msg(NETMSG_RCON_AUTH_ON, true);
@@ -1477,7 +1476,7 @@ void CServer::GenerateServerInfo6(CPacker *pPacker, int Token, int Type, NETADDR
 
 void CServer::SendServerInfo(int ClientID)
 {
-	if(m_aClients[ClientID].m_SevenDown)
+	if(m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX)
 	{
 		CPacker Packer;
 		GenerateServerInfo6(&Packer, -1, SERVERINFO_INGAME, *m_NetServer.ClientAddr(ClientID));
@@ -1513,10 +1512,10 @@ void CServer::PumpNetwork()
 		{
 			if(Packet.m_Flags&NETSENDFLAG_SIX)
 			{
-				if(m_Registers[REGISTER_SIX].RegisterProcessPacket(&Packet, ResponseToken))
+				if(m_Registers[NETPROTOCOL_SIX].RegisterProcessPacket(&Packet, ResponseToken))
 					continue;
 			}
-			else if(m_Registers[REGISTER_SEVEN].RegisterProcessPacket(&Packet, ResponseToken))
+			else if(m_Registers[NETPROTOCOL_SEVEN].RegisterProcessPacket(&Packet, ResponseToken))
 				continue;
 
 			int ExtraToken = 0;
@@ -1688,7 +1687,7 @@ int CServer::LoadMap(const char *pMapName)
 
 void CServer::InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, CConfig *pConfig, IConsole *pConsole)
 {
-	for(int i = 0; i < NUM_REGISTERTYPES; i ++)
+	for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
 		m_Registers[i].Init(i, pNetServer, pMasterServer, pConfig, pConsole);
 }
 
@@ -1748,7 +1747,7 @@ int CServer::Run()
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 
 	GameServer()->OnInit();
-	str_format(aBuf, sizeof(aBuf), "netversion %s", GameServer()->NetVersion());
+	str_format(aBuf, sizeof(aBuf), "netversion %s", GameServer()->NetVersion(NETPROTOCOL_SEVEN));
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 	if(str_comp(GameServer()->NetVersionHashUsed(), GameServer()->NetVersionHashReal()))
 	{
@@ -1851,7 +1850,7 @@ int CServer::Run()
 			}
 
 			// master server stuff
-			for(int i = 0; i < NUM_REGISTERTYPES; i ++)
+			for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
 				m_Registers[i].RegisterUpdate(m_NetServer.NetType());
 
 			PumpNetwork();
@@ -2009,7 +2008,7 @@ void CServer::DemoRecorder_HandleAutoStart()
 		char aDate[20];
 		str_timestamp(aDate, sizeof(aDate));
 		str_format(aFilename, sizeof(aFilename), "demos/%s_%s.demo", "auto/autorecord", aDate);
-		m_DemoRecorder.Start(aFilename, GameServer()->NetVersion(), m_aCurrentMap, m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256, m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc, "server");
+		m_DemoRecorder.Start(aFilename, GameServer()->NetVersion(NETPROTOCOL_SEVEN), m_aCurrentMap, m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256, m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc, "server");
 		if(Config()->m_SvAutoDemoMax)
 		{
 			// clean up auto recorded demos
@@ -2036,7 +2035,7 @@ void CServer::ConRecord(IConsole::IResult *pResult, void *pUser)
 		str_timestamp(aDate, sizeof(aDate));
 		str_format(aFilename, sizeof(aFilename), "demos/demo_%s.demo", aDate);
 	}
-	pServer->m_DemoRecorder.Start(aFilename, pServer->GameServer()->NetVersion(), pServer->m_aCurrentMap, pServer->m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256, pServer->m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc, "server");
+	pServer->m_DemoRecorder.Start(aFilename, pServer->GameServer()->NetVersion(NETPROTOCOL_SEVEN), pServer->m_aCurrentMap, pServer->m_aMapInfos[MAPTYPE_SEVEN].m_MapSha256, pServer->m_aMapInfos[MAPTYPE_SEVEN].m_MapCrc, "server");
 }
 
 void CServer::ConStopRecord(IConsole::IResult *pResult, void *pUser)

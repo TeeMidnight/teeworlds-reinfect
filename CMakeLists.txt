@@ -443,6 +443,7 @@ set_glob(ENGINE_INTERFACE GLOB src/engine
   mapchecker.h
   masterserver.h
   message.h
+  protocol.h
   server.h
   sound.h
   storage.h

@@ -4,7 +4,7 @@
 #define ENGINE_SHARED_SNAPSHOT_H
 
 #include <base/system.h>
-
+#include <engine/protocol.h>
 // CSnapshot
 
 class CSnapshotItem
@@ -136,10 +136,10 @@ class CSnapshotBuilder
 	int m_aOffsets[MAX_ITEMS];
 	int m_NumItems;
 
+	int m_Protocol;
 public:
-	bool m_SevenDown;
 
-	void Init(bool SevenDown = false);
+	void Init(int Protocol = NETPROTOCOL_SEVEN);
 	void Init(const CSnapshot *pSnapshot);
 	bool UnserializeSnap(const char *pSrcData, int SrcSize);
 

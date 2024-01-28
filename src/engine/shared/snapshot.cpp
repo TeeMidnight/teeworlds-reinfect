@@ -516,11 +516,11 @@ int CSnapshotStorage::Get(int Tick, int64 *pTagtime, CSnapshot **ppData, CSnapsh
 
 // CSnapshotBuilder
 
-void CSnapshotBuilder::Init(bool SevenDown)
+void CSnapshotBuilder::Init(int Protocol)
 {
 	m_DataSize = 0;
 	m_NumItems = 0;
-	m_SevenDown = SevenDown;
+	m_Protocol = Protocol;
 }
 
 void CSnapshotBuilder::Init(const CSnapshot *pSnapshot)
@@ -664,7 +664,7 @@ void *CSnapshotBuilder::NewItem(int Type, int ID, int Size)
 
 	CSnapshotItem *pObj = (CSnapshotItem *)(m_aData + m_DataSize);
 	
-	if(m_SevenDown)
+	if(m_Protocol == NETPROTOCOL_SIX)
 	{
 		if(Type >= 0)
 			Type = Obj_SevenToSix(Type);

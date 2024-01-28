@@ -102,9 +102,9 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 
 		// TODO: empty the recvinfo
 		NETADDR Addr;
-		bool SevenDown = true;
+		int Protocol = NETPROTOCOL_UNKNOWN;
 		int Size = 0;
-		int Result = UnpackPacket(&Addr, m_RecvUnpacker.m_aBuffer, &m_RecvUnpacker.m_Data, SevenDown, &Size);
+		int Result = UnpackPacket(&Addr, m_RecvUnpacker.m_aBuffer, &m_RecvUnpacker.m_Data, Protocol, &Size);
 		// no more packets for now
 		if(Result > 0)
 			break;
@@ -120,7 +120,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 				int Time = time_timestamp();
 				if(LastInfoQuery + 5 < Time)
 				{
-					SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, SevenDown);
+					SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, Protocol);
 				}
 				continue;
 			}
@@ -134,10 +134,10 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 
 				if(net_addr_comp(m_aSlots[i].m_Connection.PeerAddress(), &Addr, true) == 0)
 				{
-					if(SevenDown && !m_aSlots[i].m_Connection.m_SevenDown)
+					if(Protocol != m_aSlots[i].m_Connection.Protocol())
 					{
-						SevenDown = false;
-						if(UnpackPacket(m_RecvUnpacker.m_aBuffer, Size, &m_RecvUnpacker.m_Data, SevenDown) != 0)
+						Protocol = m_aSlots[i].m_Connection.Protocol();
+						if(UnpackPacket(m_RecvUnpacker.m_aBuffer, Size, &m_RecvUnpacker.m_Data, Protocol) != 0)
 							break;
 					}
 
@@ -168,7 +168,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 				continue;
 
 			int Accept = m_TokenManager.ProcessMessage(&Addr, &m_RecvUnpacker.m_Data);
-			if(!SevenDown && Accept <= 0)
+			if((Protocol == NETPROTOCOL_SEVEN) && Accept <= 0)
 				continue;
 
 			if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONTROL)
@@ -179,7 +179,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 					if(m_NumClients >= m_MaxClients)
 					{
 						const char FullMsg[] = "This server is full";
-						SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, FullMsg, sizeof(FullMsg), SevenDown);
+						SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, FullMsg, sizeof(FullMsg), Protocol);
 						continue;
 					}
 
@@ -198,7 +198,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 							{
 								char aBuf[128];
 								str_format(aBuf, sizeof(aBuf), "Only %d players with the same IP are allowed", m_MaxClientsPerIP);
-								SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, SevenDown);
+								SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, Protocol);
 								Continue = true;
 								break;
 							}
@@ -215,11 +215,10 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 							m_NumClients++;
 							
 							m_aSlots[i].m_Connection.SetToken(m_RecvUnpacker.m_Data.m_Token);
-							if(SevenDown)
-								m_aSlots[i].m_Connection.SetSevenDown();
+							m_aSlots[i].m_Connection.SetProtocol(Protocol);
 							m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr);
 							if(m_pfnNewClient)
-								m_pfnNewClient(i, m_UserPtr, SevenDown);
+								m_pfnNewClient(i, m_UserPtr, Protocol);
 							break;
 						}
 					}
@@ -230,7 +229,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 			else if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONNLESS)
 			{
 				pChunk->m_Flags = NETSENDFLAG_CONNLESS;
-				if(SevenDown)
+				if(Protocol == NETPROTOCOL_SIX)
 					pChunk->m_Flags |= NETSENDFLAG_SIX;
 				pChunk->m_ClientID = -1;
 				pChunk->m_Address = Addr;

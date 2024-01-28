@@ -3,6 +3,8 @@
 #ifndef ENGINE_SHARED_NETWORK_H
 #define ENGINE_SHARED_NETWORK_H
 
+#include <engine/protocol.h>
+
 #include "ringbuffer.h"
 #include "huffman.h"
 
@@ -141,7 +143,7 @@ enum
 
 
 typedef int (*NETFUNC_DELCLIENT)(int ClientID, const char* pReason, void *pUser);
-typedef int (*NETFUNC_NEWCLIENT)(int ClientID, void *pUser, bool SevenDown);
+typedef int (*NETFUNC_NEWCLIENT)(int ClientID, void *pUser, int Protocol);
 
 typedef unsigned int TOKEN;
 
@@ -228,12 +230,12 @@ public:
 	void UpdateLogHandles();
 	void Wait(int Time);
 
-	void SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, const void *pExtra, int ExtraSize, bool SevenDown);
+	void SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, const void *pExtra, int ExtraSize, int Protocol);
 	void SendControlMsgWithToken(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, TOKEN MyToken, bool Extended);
 	void SendPacketConnless(const NETADDR *pAddr, TOKEN Token, TOKEN ResponseToken, const void *pData, int DataSize);
-	void SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket, bool SevenDown);
-	int UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketConstruct *pPacket, bool &SevenDown, int *pSize);
-	int UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket, bool &SevenDown);
+	void SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket, int Protocol);
+	int UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketConstruct *pPacket, int& Protocol, int *pSize);
+	int UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket, int& Protocol);
 };
 
 class CNetTokenManager
@@ -354,6 +356,8 @@ private:
 	NETSTATS m_Stats;
 	CNetBase *m_pNetBase;
 
+	int m_Protocol;
+
 	//
 	void Reset();
 	void ResetStats();
@@ -374,11 +378,12 @@ public:
 	void Disconnect(const char *pReason);
 
 	void SetToken(TOKEN Token);
-	void SetSevenDown() { m_SevenDown = true; };
+	void SetProtocol(int Protocol);
 
 	TOKEN Token() const { return m_Token; }
 	TOKEN PeerToken() const { return m_PeerToken; }
 	class CConfig *Config() { return m_pNetBase->Config(); }
+	int Protocol() const { return m_Protocol; }
 
 	int Update();
 	int Flush();
@@ -402,8 +407,6 @@ public:
 	int AckSequence() const { return m_Ack; }
 	// The backroom is ack-NET_MAX_SEQUENCE/2. Used for knowing if we acked a packet or not
 	static int IsSeqInBackroom(int Seq, int Ack);
-
-	bool m_SevenDown;
 };
 
 class CConsoleNetConnection

@@ -61,6 +61,7 @@ endif()
 
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
 option(DEV "Don't generate stuff necessary for packaging" OFF)
+option(DDNETMASTER "Use DDNet Master" OFF)
 
 # Set the default build type to Release
 if(NOT(CMAKE_BUILD_TYPE))
@@ -241,6 +242,7 @@ find_package(ZLIB)
 find_package(Git)
 find_package(Python3)
 find_package(Threads)
+find_package(Curl)
 
 
 if(TARGET_OS AND TARGET_OS STREQUAL "mac")
@@ -282,9 +284,14 @@ if(TARGET_OS AND TARGET_OS STREQUAL "mac")
 endif()
 show_dependency_status("Python3" PYTHON3)
 show_dependency_status("Zlib" ZLIB)
+show_dependency_status("Curl" CURL)
 
 if(NOT(PYTHON3_FOUND))
   message(SEND_ERROR "You must install Python to compile teeworlds")
+endif()
+
+if(DDNETMASTER AND NOT(CURL_FOUND))
+  message(SEND_ERROR "You must install Curl to compile teeworlds with ddnet master")
 endif()
 
 if(TARGET_OS STREQUAL "windows")
@@ -419,6 +426,7 @@ set_glob(BASE GLOB_RECURSE src/base
   hash_ctxt.h
   hash_libtomcrypt.c
   hash_openssl.c
+  lock.h
   math.cpp
   math.h
   system.c
@@ -465,6 +473,8 @@ set_glob(ENGINE_SHARED GLOB src/engine/shared
   engine.cpp
   filecollection.cpp
   filecollection.h
+  http.cpp
+  http.h
   huffman.cpp
   huffman.h
   jobs.cpp
@@ -537,6 +547,12 @@ set(DEPS ${DEP_JSON} ${DEP_MD5} ${ZLIB_DEP})
 # Libraries
 set(LIBS ${CMAKE_THREAD_LIBS_INIT} ${ZLIB_LIBRARIES} ${PLATFORM_LIBS})
 
+if(DDNETMASTER)
+  set(LIBS
+    ${LIBS}
+    ${CURL_LIBRARIES}
+  )
+endif()
 # Targets
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_GENERATED_SHARED}  ${ENGINE_UUID_SHARED} ${BASE})
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
@@ -550,6 +566,7 @@ list(APPEND TARGETS_OWN engine-shared game-shared)
 set_glob(ENGINE_SERVER GLOB src/engine/server
   netconverter.cpp
   netconverter.h
+  register-ddnet.cpp
   register.cpp
   register.h
   server.cpp
@@ -948,6 +965,10 @@ foreach(target ${TARGETS_OWN})
   target_compile_definitions(${target} PRIVATE $<$<CONFIG:Debug>:CONF_DEBUG>)
   target_include_directories(${target} PRIVATE ${CURL_INCLUDE_DIRS})
   target_include_directories(${target} PRIVATE ${ZLIB_INCLUDE_DIRS})
+  if(DDNETMASTER)
+    target_include_directories(${target} SYSTEM PRIVATE ${CURL_INCLUDE_DIRS})
+    target_compile_definitions(${target} PRIVATE DDNET_MASTER)
+  endif()
 endforeach()
 
 foreach(target ${TARGETS_DEP})

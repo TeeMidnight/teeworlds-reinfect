@@ -27,6 +27,10 @@
 #include <engine/shared/protocol6.h>
 #include <engine/shared/snapshot.h>
 
+#ifdef DDNET_MASTER
+	#include <engine/shared/http.h>
+#endif
+
 #include <mastersrv/mastersrv.h>
 
 #include "register.h"
@@ -271,9 +275,23 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	m_RconPasswordSet = 0;
 	m_GeneratedRconPassword = 0;
 
+#ifdef DDNET_MASTER
+	m_DDNetRegister = false;
+	m_pRegisterDDNet = nullptr;
+
+	m_ServerInfoNeedsUpdate = false;
+#endif
+
 	Init();
 }
 
+CServer::~CServer()
+{
+#ifdef DDNET_MASTER
+	if(m_pRegisterDDNet)
+		delete m_pRegisterDDNet;
+#endif
+}
 
 void CServer::SetClientName(int ClientID, const char *pName)
 {
@@ -336,6 +354,11 @@ void CServer::SetClientScore(int ClientID, int Score)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State < CClient::STATE_READY)
 		return;
+#ifdef DDNET_MASTER
+	if(m_aClients[ClientID].m_Score != Score)
+		ExpireServerInfo();
+#endif
+
 	m_aClients[ClientID].m_Score = Score;
 }
 
@@ -1467,6 +1490,164 @@ void CServer::SendServerInfo(int ClientID)
 		SendMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID);
 }
 
+#ifdef DDNET_MASTER
+
+void CServer::ExpireServerInfo()
+{
+	m_ServerInfoNeedsUpdate = true;
+}
+
+static char EscapeJsonChar(char c)
+{
+	switch(c)
+	{
+	case '\"': return '\"';
+	case '\\': return '\\';
+	case '\b': return 'b';
+	case '\n': return 'n';
+	case '\r': return 'r';
+	case '\t': return 't';
+	// Don't escape '\f', who uses that. :)
+	default: return 0;
+	}
+}
+
+static char *EscapeJson(char *pBuffer, int BufferSize, const char *pString)
+{
+	dbg_assert(BufferSize > 0, "can't null-terminate the string");
+	// Subtract the space for null termination early.
+	BufferSize--;
+
+	char *pResult = pBuffer;
+	while(BufferSize && *pString)
+	{
+		char c = *pString;
+		pString++;
+		char Escaped = EscapeJsonChar(c);
+		if(Escaped)
+		{
+			if(BufferSize < 2)
+			{
+				break;
+			}
+			*pBuffer++ = '\\';
+			*pBuffer++ = Escaped;
+			BufferSize -= 2;
+		}
+		// Assuming ASCII/UTF-8, "if control character".
+		else if((unsigned char)c < 0x20)
+		{
+			// \uXXXX
+			if(BufferSize < 6)
+			{
+				break;
+			}
+			str_format(pBuffer, BufferSize, "\\u%04x", c);
+			pBuffer += 6;
+			BufferSize -= 6;
+		}
+		else
+		{
+			*pBuffer++ = c;
+			BufferSize--;
+		}
+	}
+	*pBuffer = 0;
+	return pResult;
+}
+
+void CServer::UpdateRegisterServerInfo()
+{
+	// count the players
+	int PlayerCount = 0, ClientCount = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_aClients[i].IncludedInServerInfo())
+		{
+			if(GameServer()->IsClientPlayer(i))
+				PlayerCount++;
+
+			ClientCount++;
+		}
+	}
+
+	int MaxPlayers = maximum(Config()->m_SvPlayerSlots, PlayerCount);
+	int MaxClients = maximum(m_NetServer.MaxClients(), ClientCount);
+	char aName[256];
+	char aGameType[32];
+	char aMapName[64];
+	char aVersion[64];
+	char aMapSha256[SHA256_MAXSTRSIZE];
+
+	sha256_str(m_aMapInfos[MAPTYPE_SIX].m_MapSha256, aMapSha256, sizeof(aMapSha256));
+
+	char aInfo[16384];
+	str_format(aInfo, sizeof(aInfo),
+		"{"
+		"\"max_clients\":%d,"
+		"\"max_players\":%d,"
+		"\"passworded\":%s,"
+		"\"game_type\":\"%s\","
+		"\"name\":\"%s\","
+		"\"map\":{"
+		"\"name\":\"%s\","
+		"\"sha256\":\"%s\","
+		"\"size\":%d"
+		"},"
+		"\"version\":\"%s\","
+		"\"client_score_kind\":\"score\","
+		"\"clients\":[",
+		MaxClients,
+		MaxPlayers,
+		Config()->m_Password[0] ? "true" : "false",
+		EscapeJson(aGameType, sizeof(aGameType), GameServer()->GameType()),
+		EscapeJson(aName, sizeof(aName), Config()->m_SvName),
+		EscapeJson(aMapName, sizeof(aMapName), m_aCurrentMap),
+		aMapSha256,
+		m_aMapInfos[MAPTYPE_SIX].m_MapSize,
+		EscapeJson(aVersion, sizeof(aVersion), GameServer()->Version()));
+
+	bool FirstPlayer = true;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_aClients[i].IncludedInServerInfo())
+		{
+			char aCName[32];
+			char aCClan[32];
+
+			char aExtraPlayerInfo[512];
+			GameServer()->OnUpdatePlayerServerInfo(aExtraPlayerInfo, sizeof(aExtraPlayerInfo), i);
+
+			char aClientInfo[1024];
+			str_format(aClientInfo, sizeof(aClientInfo),
+				"%s{"
+				"\"name\":\"%s\","
+				"\"clan\":\"%s\","
+				"\"country\":%d,"
+				"\"score\":%d,"
+				"\"is_player\":%s"
+				"%s"
+				"}",
+				!FirstPlayer ? "," : "",
+				EscapeJson(aCName, sizeof(aCName), ClientName(i)),
+				EscapeJson(aCClan, sizeof(aCClan), ClientClan(i)),
+				m_aClients[i].m_Country,
+				m_aClients[i].m_Score,
+				GameServer()->IsClientPlayer(i) ? "true" : "false",
+				aExtraPlayerInfo);
+			str_append(aInfo, aClientInfo, sizeof(aInfo));
+			FirstPlayer = false;
+		}
+	}
+
+	str_append(aInfo, "]}", sizeof(aInfo));
+
+	m_pRegisterDDNet->OnNewInfo(aInfo);
+
+	m_ServerInfoNeedsUpdate = false;
+}
+
+#endif
 
 void CServer::PumpNetwork()
 {
@@ -1480,13 +1661,23 @@ void CServer::PumpNetwork()
 	{
 		if(Packet.m_Flags&NETSENDFLAG_CONNLESS)
 		{
-			if(Packet.m_Flags&NETSENDFLAG_SIX)
+
+#ifdef DDNET_MASTER
+			if(m_DDNetRegister)
 			{
-				if(m_Registers[NETPROTOCOL_SIX].RegisterProcessPacket(&Packet, ResponseToken))
+				if(ResponseToken == NET_TOKEN_NONE && m_pRegisterDDNet->OnPacket(&Packet))
+					continue;
+			}else 
+#endif
+			{
+				if(Packet.m_Flags&NETSENDFLAG_SIX)
+				{
+					if(m_Registers[NETPROTOCOL_SIX].RegisterProcessPacket(&Packet, ResponseToken))
+						continue;
+				}
+				else if(m_Registers[NETPROTOCOL_SEVEN].RegisterProcessPacket(&Packet, ResponseToken))
 					continue;
 			}
-			else if(m_Registers[NETPROTOCOL_SEVEN].RegisterProcessPacket(&Packet, ResponseToken))
-				continue;
 
 			int ExtraToken = 0;
 			int Type = -1;
@@ -1668,6 +1859,13 @@ int CServer::LoadMap(const char *pMapName)
 
 void CServer::InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, CConfig *pConfig, IConsole *pConsole)
 {
+#ifdef DDNET_MASTER
+	if(pConfig->m_SvRegisterDDNet)
+	{
+		return;
+	}
+#endif
+
 	for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
 		m_Registers[i].Init(i, pNetServer, pMasterServer, pConfig, pConsole);
 }
@@ -1681,6 +1879,10 @@ void CServer::InitInterfaces(IKernel *pKernel)
 	m_pMapChecker = pKernel->RequestInterface<IMapChecker>();
 	m_pStorage = pKernel->RequestInterface<IStorage>();
 	m_pNetConverter = pKernel->RequestInterface<INetConverter>();
+
+#ifdef DDNET_MASTER
+	HttpInit(m_pStorage);
+#endif
 }
 
 int CServer::Run()
@@ -1714,6 +1916,12 @@ int CServer::Run()
 		BindAddr.port = Config()->m_SvPort;
 	}
 
+#ifdef DDNET_MASTER
+	m_DDNetRegister = Config()->m_SvRegisterDDNet;
+	if(m_DDNetRegister)
+		m_pRegisterDDNet = CreateRegister(Config(), m_pConsole, Kernel()->RequestInterface<IEngine>(), Config()->m_SvPort, m_NetServer.GetGlobalToken());
+#endif
+
 	if(!m_NetServer.Open(BindAddr, Config(), Console(), Kernel()->RequestInterface<IEngine>(), &m_ServerBan,
 		Config()->m_SvMaxClients, Config()->m_SvMaxClientsPerIP, NewClientCallback, DelClientCallback, this))
 	{
@@ -1740,6 +1948,10 @@ int CServer::Run()
 
 	// process pending commands
 	m_pConsole->StoreCommands(false);
+#ifdef DDNET_MASTER
+	if(m_pRegisterDDNet)
+		m_pRegisterDDNet->OnConfigChange();
+#endif
 
 	if(m_GeneratedRconPassword)
 	{
@@ -1831,10 +2043,21 @@ int CServer::Run()
 				UpdateClientMapListEntries();
 			}
 
+#ifdef DDNET_MASTER
 			// master server stuff
-			for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
-				m_Registers[i].RegisterUpdate(m_NetServer.NetType());
+			if(m_DDNetRegister)
+			{
+				m_pRegisterDDNet->Update();
 
+				if(m_ServerInfoNeedsUpdate)
+					UpdateRegisterServerInfo();
+			}
+			else
+#endif
+			{
+				for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
+					m_Registers[i].RegisterUpdate(m_NetServer.NetType());
+			}
 			PumpNetwork();
 
 			// wait for incoming data
@@ -1852,6 +2075,11 @@ int CServer::Run()
 	m_Econ.Shutdown();
 
 	GameServer()->OnShutdown();
+#ifdef DDNET_MASTER
+	if(m_DDNetRegister)
+		m_pRegisterDDNet->OnShutdown();
+#endif
+
 	Free();
 
 	return 0;

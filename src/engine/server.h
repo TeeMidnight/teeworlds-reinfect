@@ -73,6 +73,10 @@ public:
 	virtual bool DemoRecorder_IsRecording() = 0;
 
 	virtual void SendServerInfo(int ClientID) = 0;
+
+#ifdef DDNET_MASTER
+	virtual void ExpireServerInfo() = 0;
+#endif
 };
 
 class IGameServer : public IInterface
@@ -109,6 +113,10 @@ public:
 	virtual const char *NetVersionHashReal() const = 0;
 
 	virtual bool TimeScore() const { return false; }
+
+#ifdef DDNET_MASTER
+	virtual void OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID) = 0;
+#endif
 };
 
 extern IGameServer *CreateGameServer();

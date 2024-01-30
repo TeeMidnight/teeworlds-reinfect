@@ -722,6 +722,10 @@ void CGameContext::OnClientEnter(int ClientID)
 		Server()->SendPackMsg(&ClientInfoMsg, MSGFLAG_VITAL|MSGFLAG_NORECORD, ClientID);
 	}
 
+#ifdef DDNET_MASTER
+	Server()->ExpireServerInfo();
+#endif
+
 	// local info
 	NewClientInfoMsg.m_Local = 1;
 	Server()->SendPackMsg(&NewClientInfoMsg, MSGFLAG_VITAL|MSGFLAG_NORECORD, ClientID);
@@ -762,6 +766,10 @@ void CGameContext::OnClientConnected(int ClientID, bool Dummy, bool AsSpec)
 
 	// send settings
 	SendSettings(ClientID);
+
+#ifdef DDNET_MASTER
+	Server()->ExpireServerInfo();
+#endif
 }
 
 void CGameContext::OnClientTeamChange(int ClientID)
@@ -776,6 +784,10 @@ void CGameContext::OnClientTeamChange(int ClientID)
 		if(p->GetOwner() == ClientID)
 			p->LoseOwner();
 	}
+
+#ifdef DDNET_MASTER
+	Server()->ExpireServerInfo();
+#endif
 }
 
 void CGameContext::OnClientDrop(int ClientID, const char *pReason)
@@ -815,6 +827,10 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 	m_apPlayers[ClientID] = 0;
 
 	m_VoteUpdate = true;
+	
+#ifdef DDNET_MASTER
+	Server()->ExpireServerInfo();
+#endif
 }
 
 void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientID)
@@ -960,6 +976,9 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 					SendSkinChange(pPlayer->GetCID(), i);
 				}
 			}
+#ifdef DDNET_MASTER
+			Server()->ExpireServerInfo();
+#endif
 
 			return 0;
 		}
@@ -1329,6 +1348,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 				SendSkinChange(pPlayer->GetCID(), i);
 			}
+#ifdef DDNET_MASTER
+			Server()->ExpireServerInfo();
+#endif
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 		}
@@ -1980,3 +2002,140 @@ const char *CGameContext::NetVersionHashUsed() const { return GAME_NETVERSION_HA
 const char *CGameContext::NetVersionHashReal() const { return GAME_NETVERSION_HASH; }
 
 IGameServer *CreateGameServer() { return new CGameContext; }
+
+
+#ifdef DDNET_MASTER
+
+static char EscapeJsonChar(char c)
+{
+	switch(c)
+	{
+	case '\"': return '\"';
+	case '\\': return '\\';
+	case '\b': return 'b';
+	case '\n': return 'n';
+	case '\r': return 'r';
+	case '\t': return 't';
+	// Don't escape '\f', who uses that. :)
+	default: return 0;
+	}
+}
+
+static char *EscapeJson(char *pBuffer, int BufferSize, const char *pString)
+{
+	dbg_assert(BufferSize > 0, "can't null-terminate the string");
+	// Subtract the space for null termination early.
+	BufferSize--;
+
+	char *pResult = pBuffer;
+	while(BufferSize && *pString)
+	{
+		char c = *pString;
+		pString++;
+		char Escaped = EscapeJsonChar(c);
+		if(Escaped)
+		{
+			if(BufferSize < 2)
+			{
+				break;
+			}
+			*pBuffer++ = '\\';
+			*pBuffer++ = Escaped;
+			BufferSize -= 2;
+		}
+		// Assuming ASCII/UTF-8, "if control character".
+		else if((unsigned char)c < 0x20)
+		{
+			// \uXXXX
+			if(BufferSize < 6)
+			{
+				break;
+			}
+			str_format(pBuffer, BufferSize, "\\u%04x", c);
+			pBuffer += 6;
+			BufferSize -= 6;
+		}
+		else
+		{
+			*pBuffer++ = c;
+			BufferSize--;
+		}
+	}
+	*pBuffer = 0;
+	return pResult;
+}
+
+void CGameContext::OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID)
+{
+	if(BufSize <= 0)
+		return;
+
+	aBuf[0] = '\0';
+
+	if(!m_apPlayers[ID])
+		return;
+
+	char aCSkinName[64];
+
+	CTeeInfo &TeeInfo = m_apPlayers[ID]->m_TeeInfos;
+
+	char aJsonSkin[400];
+	aJsonSkin[0] = '\0';
+
+	if(Server()->ClientProtocol(ID) == NETPROTOCOL_SIX)
+	{
+		// 0.6
+		if(TeeInfo.m_UseCustomColor)
+		{
+			str_format(aJsonSkin, sizeof(aJsonSkin),
+				"\"name\":\"%s\","
+				"\"color_body\":%d,"
+				"\"color_feet\":%d",
+				EscapeJson(aCSkinName, sizeof(aCSkinName), TeeInfo.m_aSkinName),
+				TeeInfo.m_ColorBody,
+				TeeInfo.m_ColorFeet);
+		}
+		else
+		{
+			str_format(aJsonSkin, sizeof(aJsonSkin),
+				"\"name\":\"%s\"",
+				EscapeJson(aCSkinName, sizeof(aCSkinName), TeeInfo.m_aSkinName));
+		}
+	}
+	else if(Server()->ClientProtocol(ID) == NETPROTOCOL_SEVEN)
+	{
+		const char *apPartNames[NUM_SKINPARTS] = {"body", "marking", "decoration", "hands", "feet", "eyes"};
+		char aPartBuf[64];
+
+		for(int i = 0; i < NUM_SKINPARTS; ++i)
+		{
+			str_format(aPartBuf, sizeof(aPartBuf),
+				"%s\"%s\":{"
+				"\"name\":\"%s\"",
+				i == 0 ? "" : ",",
+				apPartNames[i],
+				EscapeJson(aCSkinName, sizeof(aCSkinName), TeeInfo.m_apSkinPartNames[i]));
+
+			str_append(aJsonSkin, aPartBuf, sizeof(aJsonSkin));
+
+			if(TeeInfo.m_aUseCustomColors[i])
+			{
+				str_format(aPartBuf, sizeof(aPartBuf),
+					",\"color\":%d",
+					TeeInfo.m_aSkinPartColors[i]);
+				str_append(aJsonSkin, aPartBuf, sizeof(aJsonSkin));
+			}
+			str_append(aJsonSkin, "}", sizeof(aJsonSkin));
+		}
+	}
+
+	str_format(aBuf, BufSize,
+		",\"skin\":{"
+		"%s"
+		"},"
+		"\"afk\":\"false\","
+		"\"team\":%d",
+		aJsonSkin,
+		m_apPlayers[ID]->GetTeam());
+}
+#endif

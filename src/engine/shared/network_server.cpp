@@ -1,5 +1,6 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <base/hash_ctxt.h>
 #include <base/math.h>
 #include <base/system.h>
 
@@ -9,6 +10,24 @@
 #include "network.h"
 
 #include "protocol6.h"
+
+static TOKEN ToSecurityToken(const unsigned char *pData)
+{
+	return (int)pData[0] | (pData[1] << 8) | (pData[2] << 16) | (pData[3] << 24);
+}
+
+TOKEN CNetServer::GetGlobalToken() const
+{
+	static NETADDR NullAddr = {0};
+	SHA256_CTX Sha256;
+	sha256_init(&Sha256);
+	sha256_update(&Sha256, (unsigned char *)m_aSecurityTokenSeed, sizeof(m_aSecurityTokenSeed));
+	sha256_update(&Sha256, (unsigned char *)&NullAddr, 20); // omit port, bad idea!
+
+	TOKEN SecurityToken = ToSecurityToken(sha256_finish(&Sha256).data);
+
+	return SecurityToken;
+}
 
 bool CNetServer::Open(NETADDR BindAddr, CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, CNetBan *pNetBan,
 	int MaxClients, int MaxClientsPerIP, NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser)
@@ -31,6 +50,8 @@ bool CNetServer::Open(NETADDR BindAddr, CConfig *pConfig, IConsole *pConsole, IE
 	m_NumClients = 0;
 	SetMaxClients(MaxClients);
 	SetMaxClientsPerIP(MaxClientsPerIP);
+
+	secure_random_fill(m_aSecurityTokenSeed, sizeof(m_aSecurityTokenSeed));
 
 	for(int i = 0; i < NET_MAX_CLIENTS; i++)
 		m_aSlots[i].m_Connection.Init(this, true);

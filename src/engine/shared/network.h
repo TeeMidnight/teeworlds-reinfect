@@ -481,6 +481,8 @@ class CNetServer : public CNetBase
 
 	CNetTokenManager m_TokenManager;
 	CNetTokenCache m_TokenCache;
+	
+	unsigned char m_aSecurityTokenSeed[16];
 
 public:
 	int MaxClients() const { return m_MaxClients; }
@@ -506,6 +508,8 @@ public:
 	//
 	void SetMaxClients(int MaxClients);
 	void SetMaxClientsPerIP(int MaxClientsPerIP);
+
+	TOKEN GetGlobalToken() const;
 };
 
 class CNetConsole

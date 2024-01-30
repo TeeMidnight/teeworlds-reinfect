@@ -30,8 +30,8 @@ const char* CRegister::RegisterName()
 {
 	switch (m_RegisterProtocol)
 	{
-	case NETPROTOCOL_SIX: return "register6";
-	case NETPROTOCOL_SEVEN: return "register7";
+	case REGISTERTYPE_SEVEN: return "register7";
+	case REGISTERTYPE_SIX: return "register6";
 	}
 	return "register"; // couldn't find what is the protocol
 } 
@@ -50,7 +50,7 @@ void CRegister::RegisterSendFwcheckresponse(NETADDR *pAddr, TOKEN Token)
 	Packet.m_Flags = NETSENDFLAG_CONNLESS;
 	Packet.m_DataSize = sizeof(SERVERBROWSE_FWRESPONSE);
 	Packet.m_pData = SERVERBROWSE_FWRESPONSE;
-	if(m_RegisterProtocol == NETPROTOCOL_SEVEN)
+	if(m_RegisterProtocol == REGISTERTYPE_SEVEN)
 		m_pNetServer->Send(&Packet, Token);
 	else 
 		m_pNetServer->SendConnlessSevenDown(&Packet);
@@ -75,7 +75,7 @@ void CRegister::RegisterSendHeartbeat(NETADDR Addr)
 		Port = m_pConfig->m_SvExternalPort;
 	aData[sizeof(SERVERBROWSE_HEARTBEAT)] = Port >> 8;
 	aData[sizeof(SERVERBROWSE_HEARTBEAT)+1] = Port&0xff;
-	if(m_RegisterProtocol == NETPROTOCOL_SEVEN)
+	if(m_RegisterProtocol == REGISTERTYPE_SEVEN)
 		m_pNetServer->Send(&Packet);
 	else 
 		m_pNetServer->SendConnlessSevenDown(&Packet);
@@ -89,7 +89,7 @@ void CRegister::RegisterSendCountRequest(NETADDR Addr)
 	Packet.m_Flags = NETSENDFLAG_CONNLESS;
 	Packet.m_DataSize = sizeof(SERVERBROWSE_GETCOUNT);
 	Packet.m_pData = SERVERBROWSE_GETCOUNT;
-	if(m_RegisterProtocol == NETPROTOCOL_SEVEN)
+	if(m_RegisterProtocol == REGISTERTYPE_SEVEN)
 		m_pNetServer->Send(&Packet);
 	else 
 		m_pNetServer->SendConnlessSevenDown(&Packet);
@@ -158,7 +158,7 @@ void CRegister::RegisterUpdate(int Nettype)
 				m_aMasterserverInfo[i].m_Valid = 1;
 				m_aMasterserverInfo[i].m_Count = -1;
 				m_aMasterserverInfo[i].m_LastSend = 0;
-				if(m_RegisterProtocol == NETPROTOCOL_SIX)
+				if(m_RegisterProtocol == REGISTERTYPE_SIX)
 					m_aMasterserverInfo[i].m_Addr.port = MASTERSERVER6_PORT;
 			}
 

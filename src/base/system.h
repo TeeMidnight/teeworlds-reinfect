@@ -1364,6 +1364,7 @@ typedef struct
 typedef int (*FS_LISTDIR_CALLBACK_FILEINFO)(const CFsFileInfo *info, int is_dir, int dir_type, void *user);
 void fs_listdir_fileinfo(const char *dir, FS_LISTDIR_CALLBACK_FILEINFO cb, int type, void *user);
 
+int fs_makedir_rec_for(const char *path);
 /*
 	Function: fs_makedir
 		Creates a directory
@@ -1772,6 +1773,24 @@ void str_utf8_copy_num(char *dst, const char *src, int dst_size, int num);
 		- It's the user's responsibility to make sure the bounds are aligned.
 */
 void str_utf8_stats(const char *str, int max_size, int max_count, int *size, int *count);
+
+/*
+	Function: str_next_token
+		Writes the next token after str into buf, returns the rest of the string.
+
+	Parameters:
+		str - Pointer to string.
+		delim - Delimiter for tokenization.
+		buffer - Buffer to store token in.
+		buffer_size - Size of the buffer.
+
+	Returns:
+		Pointer to rest of the string.
+
+	Remarks:
+		- The token is always null-terminated.
+*/
+const char *str_next_token(const char *str, const char *delim, char *buffer, int buffer_size);
 
 /*
 	Function: secure_random_init

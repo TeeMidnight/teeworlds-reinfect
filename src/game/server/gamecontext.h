@@ -200,6 +200,10 @@ public:
 	virtual const char *NetVersion(int Protocol) const;
 	virtual const char *NetVersionHashUsed() const;
 	virtual const char *NetVersionHashReal() const;
+
+#ifdef DDNET_MASTER
+	void OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID) override;
+#endif
 };
 
 inline int64 CmaskAll() { return -1; }

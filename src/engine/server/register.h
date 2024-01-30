@@ -5,6 +5,14 @@
 
 #include <engine/shared/network.h>
 
+enum
+{
+	REGISTERTYPE_SEVEN=0,
+	REGISTERTYPE_SIX=1,
+
+	NUM_REGISTERTYPES,
+};
+
 class CRegister
 {
 	enum
@@ -53,5 +61,48 @@ public:
 	void RegisterUpdate(int Nettype);
 	int RegisterProcessPacket(struct CNetChunk *pPacket, TOKEN Token);
 };
+
+struct CUuid
+{
+	unsigned char m_aData[16];
+
+	bool operator==(const CUuid &Other) const
+    {
+        return mem_comp(this, &Other, sizeof(*this)) == 0;
+    }
+
+	bool operator!=(const CUuid &Other) const
+    {
+        return !(*this == Other);
+    }
+
+	bool operator<(const CUuid &Other) const
+    {
+        return mem_comp(this, &Other, sizeof(*this)) < 0;
+    }
+};
+
+#ifdef DDNET_MASTER
+
+class IRegisterDDNet
+{
+public:
+	virtual ~IRegisterDDNet() {}
+
+	virtual void Update() = 0;
+	// Call `OnConfigChange` if you change relevant config variables
+	// without going through the console.
+	virtual void OnConfigChange() = 0;
+	// Returns `true` if the packet was a packet related to registering
+	// code and doesn't have to processed furtherly.
+	virtual bool OnPacket(const CNetChunk *pPacket) = 0;
+	// `pInfo` must be an encoded JSON object.
+	virtual void OnNewInfo(const char *pInfo) = 0;
+	virtual void OnShutdown() = 0;
+};
+
+IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, unsigned SevenSecurityToken);
+
+#endif
 
 #endif

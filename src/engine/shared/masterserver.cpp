@@ -22,7 +22,7 @@ public:
 		NETADDR m_Addr;
 		bool m_Valid;
 
-		CHostLookup m_Lookup;
+		std::unique_ptr<CHostLookup> m_pLookup;
 	};
 
 	enum
@@ -55,7 +55,8 @@ public:
 		// add lookup jobs
 		for(int i = 0; i < MAX_MASTERSERVERS; i++)
 		{
-			m_pEngine->HostLookup(&m_aMasterServers[i].m_Lookup, m_aMasterServers[i].m_aHostname, Nettype);
+			m_aMasterServers[i].m_pLookup = std::make_unique<CHostLookup>(m_aMasterServers[i].m_aHostname, Nettype);
+			m_pEngine->AddJob(std::move(m_aMasterServers[i].m_pLookup));
 			m_aMasterServers[i].m_Valid = false;
 		}
 
@@ -72,13 +73,13 @@ public:
 
 		for(int i = 0; i < MAX_MASTERSERVERS; i++)
 		{
-			if(m_aMasterServers[i].m_Lookup.m_Job.Status() != CJob::STATE_DONE)
+			if(m_aMasterServers[i].m_pLookup->Status() != IJob::STATE_DONE)
 				m_State = STATE_UPDATE;
 			else
 			{
-				if(m_aMasterServers[i].m_Lookup.m_Job.Result() == 0)
+				if(m_aMasterServers[i].m_pLookup->m_Result == 0)
 				{
-					m_aMasterServers[i].m_Addr = m_aMasterServers[i].m_Lookup.m_Addr;
+					m_aMasterServers[i].m_Addr = m_aMasterServers[i].m_pLookup->m_Addr;
 					m_aMasterServers[i].m_Addr.port = MASTERSERVER_PORT;
 					m_aMasterServers[i].m_Valid = true;
 				}
@@ -155,7 +156,10 @@ public:
 				for(int i = 0; i < MAX_MASTERSERVERS; ++i)
 					if(str_comp(m_aMasterServers[i].m_aHostname, Info.m_aHostname) == 0)
 					{
-						m_aMasterServers[i] = Info;
+						m_aMasterServers[i].m_Addr = Info.m_Addr;
+						m_aMasterServers[i].m_Valid = Info.m_Valid;
+						str_copy(m_aMasterServers[i].m_aHostname, Info.m_aHostname, sizeof(m_aMasterServers[i].m_aHostname));
+						m_aMasterServers[i].m_pLookup = std::move(Info.m_pLookup);
 						Added = true;
 						break;
 					}
@@ -165,7 +169,10 @@ public:
 					for(int i = 0; i < MAX_MASTERSERVERS; ++i)
 						if(m_aMasterServers[i].m_Addr.type == NETTYPE_INVALID)
 						{
-							m_aMasterServers[i] = Info;
+							m_aMasterServers[i].m_Addr = Info.m_Addr;
+							m_aMasterServers[i].m_Valid = Info.m_Valid;
+							str_copy(m_aMasterServers[i].m_aHostname, Info.m_aHostname, sizeof(m_aMasterServers[i].m_aHostname));
+							m_aMasterServers[i].m_pLookup = std::move(Info.m_pLookup);
 							Added = true;
 							break;
 						}

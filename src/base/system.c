@@ -1716,6 +1716,24 @@ int fs_storage_path(const char *appname, char *path, int max)
 #endif
 }
 
+int fs_makedir_rec_for(const char *path)
+{
+	char buffer[1024 * 2];
+	char *p;
+	str_copy(buffer, path, sizeof(buffer));
+	for(p = buffer + 1; *p != '\0'; p++)
+	{
+		if(*p == '/' && *(p + 1) != '\0')
+		{
+			*p = '\0';
+			if(fs_makedir(buffer) < 0)
+				return -1;
+			*p = '/';
+		}
+	}
+	return 0;
+}
+
 int fs_makedir(const char *path)
 {
 #if defined(CONF_FAMILY_WINDOWS)
@@ -2827,6 +2845,37 @@ unsigned str_quickhash(const char *str)
 	for(; *str; str++)
 		hash = ((hash << 5) + hash) + (*str); /* hash * 33 + c */
 	return hash;
+}
+
+static const char *str_token_get(const char *str, const char *delim, int *length)
+{
+	size_t len = strspn(str, delim);
+	if(len > 1)
+		str++;
+	else
+		str += len;
+	if(!*str)
+		return NULL;
+
+	*length = strcspn(str, delim);
+	return str;
+}
+
+const char *str_next_token(const char *str, const char *delim, char *buffer, int buffer_size)
+{
+	int len = 0;
+	const char *tok = str_token_get(str, delim, &len);
+	if(len < 0 || tok == NULL)
+	{
+		buffer[0] = '\0';
+		return NULL;
+	}
+
+	len = buffer_size > len ? len : buffer_size - 1;
+	mem_copy(buffer, tok, len);
+	buffer[len] = '\0';
+
+	return tok + len;
 }
 
 struct SECURE_RANDOM_DATA

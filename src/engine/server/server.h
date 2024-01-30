@@ -8,6 +8,11 @@
 #include <engine/server.h>
 #include <engine/shared/memheap.h>
 
+#ifdef DDNET_MASTER
+	#include <vector>
+	#include <memory>
+#endif
+
 class CSnapIDPool
 {
 	enum
@@ -148,6 +153,13 @@ public:
 			return (m_Protocol == NETPROTOCOL_SIX) ? MAPTYPE_SIX : MAPTYPE_SEVEN;
 		}
 
+#ifdef DDNET_MASTER
+		bool IncludedInServerInfo() const
+		{
+			return m_State != STATE_EMPTY;
+		}
+#endif
+
 		int m_Protocol;
 	};
 
@@ -221,9 +233,21 @@ public:
 	int m_GeneratedRconPassword;
 
 	CDemoRecorder m_DemoRecorder;
-	CRegister m_Registers[NUM_NETPROTOCOLS];
+	CRegister m_Registers[NUM_REGISTERTYPES];
+
+#ifdef DDNET_MASTER
+	bool m_DDNetRegister;
+	bool m_ServerInfoNeedsUpdate;
+
+	IRegisterDDNet *m_pRegisterDDNet;
+
+	void UpdateRegisterServerInfo();
+
+	void ExpireServerInfo() override;
+#endif
 
 	CServer();
+	~CServer();
 
 	virtual void SetClientName(int ClientID, const char *pName);
 	virtual void SetClientClan(int ClientID, char const *pClan);

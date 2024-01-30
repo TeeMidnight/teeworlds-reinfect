@@ -47,6 +47,8 @@ static const unsigned char SERVERBROWSE_LIST_LEGACY[] = {255, 255, 255, 255, 'l'
 static const unsigned char SERVERBROWSE_GETCOUNT_LEGACY[] = {255, 255, 255, 255, 'c', 'o', 'u', 'n'};
 static const unsigned char SERVERBROWSE_COUNT_LEGACY[] = {255, 255, 255, 255, 's', 'i', 'z', 'e'};
 
+static const unsigned char SERVERBROWSE_CHALLENGE[] = {255, 255, 255, 255, 'c', 'h', 'a', 'l'};
+
 enum
 {
 	SERVERINFO_VANILLA = 0,

@@ -176,7 +176,7 @@ void CPlayer::Snap(int SnappingClient)
 			SpectatorInfo.m_X = m_ViewPos.x;
 			SpectatorInfo.m_Y = m_ViewPos.y;
 		}
-		if(!NetConverter()->SnapNewItemConvert(&SpectatorInfo, this, NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(PlayerInfo), SnappingClient))
+		if(!NetConverter()->SnapNewItemConvert(&SpectatorInfo, this, NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(CNetObj_SpectatorInfo), SnappingClient))
 			return;
 	}
 

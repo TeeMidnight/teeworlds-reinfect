@@ -73,7 +73,7 @@ public:
 
 		for(int i = 0; i < MAX_MASTERSERVERS; i++)
 		{
-			if(m_aMasterServers[i].m_pLookup->Status() != IJob::STATE_DONE)
+			if(!m_aMasterServers[i].m_pLookup || m_aMasterServers[i].m_pLookup->Status() != IJob::STATE_DONE)
 				m_State = STATE_UPDATE;
 			else
 			{

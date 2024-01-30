@@ -9,6 +9,7 @@
 #include <engine/engine.h>
 #include <engine/map.h>
 #include <engine/masterserver.h>
+#include <engine/netconverter.h>
 #include <engine/server.h>
 #include <engine/storage.h>
 
@@ -281,6 +282,37 @@ void CServer::SetClientName(int ClientID, const char *pName)
 
 	const char *pDefaultName = "(1)";
 	pName = str_utf8_skip_whitespaces(pName);
+
+	char aName[MAX_NAME_LENGTH];
+	if(*pName)
+	{
+		str_copy(aName, pName, sizeof(aName));
+		// add a check for 0.6
+		bool Comp;
+		int Num = 0;
+		do
+		{
+			Comp = false;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				if(m_aClients[i].m_State == CServer::CClient::STATE_INGAME)
+				{
+					if(str_comp(m_aClients[i].m_aName, aName) == 0)
+					{
+						Comp = true;
+						break;
+					}
+				}
+			}
+			if(Comp)
+			{
+				Num ++;
+				str_format(aName, sizeof(aName), "(%d)%s", Num, pName);
+			}
+		}while(Comp);
+		pName = aName;
+	}
+
 	str_utf8_copy_num(m_aClients[ClientID].m_aName, *pName ? pName : pDefaultName, sizeof(m_aClients[ClientID].m_aName), MAX_NAME_LENGTH);
 }
 
@@ -423,6 +455,15 @@ int CServer::ClientCountry(int ClientID) const
 		return -1;
 }
 
+int CServer::ClientProtocol(int ClientID) const
+{
+	if(ClientID == -1)
+		return NETPROTOCOL_SEVEN;
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State == CServer::CClient::STATE_EMPTY)
+		return NETPROTOCOL_UNKNOWN;
+	return m_aClients[ClientID].m_Protocol;
+}
+
 bool CServer::ClientIngame(int ClientID) const
 {
 	return ClientID >= 0 && ClientID < MAX_CLIENTS && m_aClients[ClientID].m_State == CServer::CClient::STATE_INGAME;
@@ -458,49 +499,13 @@ void CServer::InitRconPasswordIfUnset()
 	m_GeneratedRconPassword = 1;
 }
 
-static CPacker* RepackMsg(CMsgPacker *pSource, int Protocol)
-{
-	int MsgId = pSource->Type();
-	if((Protocol == NETPROTOCOL_SIX) && !pSource->NoRepack())
-	{
-		if(pSource->System())
-		{
-			if(MsgId >= NETMSG_MAP_CHANGE && MsgId <= NETMSG_MAP_DATA)
-				;
-			else if(MsgId >= NETMSG_CON_READY && MsgId <= NETMSG_INPUTTIMING)
-				MsgId -= 1;
-			else if(MsgId == NETMSG_RCON_LINE)
-				MsgId = protocol6::NETMSG_RCON_LINE;
-			else if(MsgId >= NETMSG_PING && MsgId <= NETMSG_PING_REPLY)
-				MsgId -= 4;
-			else if(MsgId >= NETMSG_RCON_CMD_ADD && MsgId <= NETMSG_RCON_CMD_REM)
-				MsgId += 11;
-			else
-			{
-				dbg_msg("net", "DROP send sys %d to 0.6", MsgId);
-				return nullptr;
-			}
-		}
-		else
-		{
-			if(MsgId >= 0)
-				MsgId = Msg_SevenToSix(MsgId);
-
-			if(MsgId < 0)
-				return nullptr;
-		}
-	}
-
-	CPacker *pMsg = new CPacker();
-	pMsg->Reset();
-	pMsg->AddInt((MsgId << 1) | (pSource->System() ? 1 : 0));
-	pMsg->AddRaw(pSource->Data(), pSource->Size());
-
-	return pMsg;
-}
-
 int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 {
+	if(pMsg->Convert() && !pMsg->System())
+		return NetConverter()->SendMsgConvert(pMsg, Flags, ClientID);
+	else if(pMsg->Convert())
+		return NetConverter()->SendSystemMsgConvert(pMsg, Flags, ClientID);
+
 	CNetChunk Packet;
 	if(!pMsg)
 		return -1;
@@ -511,24 +516,17 @@ int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 
 	mem_zero(&Packet, sizeof(CNetChunk));
 
+	Packet.m_pData = pMsg->Data();
+	Packet.m_DataSize = pMsg->Size();
+
 	if(Flags&MSGFLAG_VITAL)
 		Packet.m_Flags |= NETSENDFLAG_VITAL;
 	if(Flags&MSGFLAG_FLUSH)
 		Packet.m_Flags |= NETSENDFLAG_FLUSH;
 
-	CPacker *pPack[NUM_NETPROTOCOLS] = {nullptr, nullptr};
-	if(ClientID == -1)
-	{
-		for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
-			pPack[i] = RepackMsg(pMsg, i);
-	}else
-	{
-		pPack[m_aClients[ClientID].m_Protocol] = RepackMsg(pMsg, m_aClients[ClientID].m_Protocol);
-	}
-
 	// write message to demo recorder
-	if(!(Flags&MSGFLAG_NORECORD) && pPack[NETPROTOCOL_SEVEN])
-		m_DemoRecorder.RecordMessage(pPack[NETPROTOCOL_SEVEN]->Data(), pPack[NETPROTOCOL_SEVEN]->Size());
+	if(!(Flags&MSGFLAG_NORECORD))
+		m_DemoRecorder.RecordMessage(pMsg->Data(), pMsg->Size());
 
 	if(!(Flags&MSGFLAG_NOSEND))
 	{
@@ -539,28 +537,17 @@ int CServer::SendMsg(CMsgPacker *pMsg, int Flags, int ClientID)
 			{
 				if(m_aClients[i].m_State == CClient::STATE_INGAME && !m_aClients[i].m_Quitting)
 				{
-					if(!pPack[m_aClients[i].m_Protocol])
-						continue;
-						
 					Packet.m_ClientID = i;
-					Packet.m_pData = pPack[m_aClients[i].m_Protocol]->Data();
-					Packet.m_DataSize = pPack[m_aClients[i].m_Protocol]->Size();
 					m_NetServer.Send(&Packet);
 				}
 			}
 		}
-		else if(pPack[m_aClients[ClientID].m_Protocol])
+		else
 		{
 			Packet.m_ClientID = ClientID;
-			Packet.m_pData = pPack[m_aClients[ClientID].m_Protocol]->Data();
-			Packet.m_DataSize = pPack[m_aClients[ClientID].m_Protocol]->Size();
 			m_NetServer.Send(&Packet);
 		}
 	}
-
-	for(int i = 0; i < NUM_NETPROTOCOLS; i ++)
-		if(pPack[i])
-			delete pPack[i];
 
 	return 0;
 }
@@ -611,7 +598,7 @@ void CServer::DoSnapshot()
 			int DeltaTick = -1;
 			int DeltaSize;
 
-			m_SnapshotBuilder.Init(m_aClients[i].m_Protocol);
+			m_SnapshotBuilder.Init();
 
 			GameServer()->OnSnap(i);
 
@@ -773,12 +760,9 @@ void CServer::SendMap(int ClientID)
 	Msg.AddString(GetMapName(), 0);
 	Msg.AddInt(pInfo->m_MapCrc);
 	Msg.AddInt(pInfo->m_MapSize);
-	if(m_aClients[ClientID].m_Protocol == NETPROTOCOL_SEVEN)
-	{
-		Msg.AddInt(m_MapChunksPerRequest);
-		Msg.AddInt(MAP_CHUNK_SIZE);
-		Msg.AddRaw(&pInfo->m_MapSha256, sizeof(pInfo->m_MapSha256));
-	}
+	Msg.AddInt(m_MapChunksPerRequest);
+	Msg.AddInt(MAP_CHUNK_SIZE);
+	Msg.AddRaw(&pInfo->m_MapSha256, sizeof(pInfo->m_MapSha256));
 	SendMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID);
 }
 
@@ -1090,7 +1074,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 		}
 		else if(Msg == NETMSG_RCON_AUTH)
 		{
-			if(IsSevenDown(ClientID))
+			if(ClientProtocol(ClientID) == NETPROTOCOL_SIX)
 				Unpacker.GetString(CUnpacker::SANITIZE_CC);
 
 			const char *pPw = Unpacker.GetString(CUnpacker::SANITIZE_CC);
@@ -1107,17 +1091,8 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				}
 				else if(Config()->m_SvRconPassword[0] && str_comp(pPw, Config()->m_SvRconPassword) == 0)
 				{
-					if(IsSevenDown(ClientID))
-					{
-						CMsgPacker Msg(protocol6::NETMSG_RCON_AUTH_STATUS, true, true);
-						Msg.AddInt(1); //authed
-						Msg.AddInt(1); //cmdlist
-						SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
-					}else
-					{
-						CMsgPacker Msg(NETMSG_RCON_AUTH_ON, true);
-						SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
-					}
+					CMsgPacker Msg(NETMSG_RCON_AUTH_ON, true);
+					SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 
 					m_aClients[ClientID].m_Authed = AUTHED_ADMIN;
 					m_aClients[ClientID].m_pRconCmdToSend = Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
@@ -1132,17 +1107,8 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				}
 				else if(Config()->m_SvRconModPassword[0] && str_comp(pPw, Config()->m_SvRconModPassword) == 0)
 				{
-					if(IsSevenDown(ClientID))
-					{
-						CMsgPacker Msg(protocol6::NETMSG_RCON_AUTH_STATUS, true, true);
-						Msg.AddInt(1); //authed
-						Msg.AddInt(1); //cmdlist
-						SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
-					}else
-					{
-						CMsgPacker Msg(NETMSG_RCON_AUTH_ON, true);
-						SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
-					}
+					CMsgPacker Msg(NETMSG_RCON_AUTH_ON, true);
+					SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 
 					m_aClients[ClientID].m_Authed = AUTHED_MOD;
 					m_aClients[ClientID].m_pRconCmdToSend = Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_MOD, CFGFLAG_SERVER);
@@ -1714,6 +1680,7 @@ void CServer::InitInterfaces(IKernel *pKernel)
 	m_pMap = pKernel->RequestInterface<IEngineMap>();
 	m_pMapChecker = pKernel->RequestInterface<IMapChecker>();
 	m_pStorage = pKernel->RequestInterface<IStorage>();
+	m_pNetConverter = pKernel->RequestInterface<INetConverter>();
 }
 
 int CServer::Run()
@@ -2070,7 +2037,7 @@ void CServer::ConLogout(IConsole::IResult *pResult, void *pUser)
 	if(pServer->m_RconClientID >= 0 && pServer->m_RconClientID < MAX_CLIENTS &&
 		pServer->m_aClients[pServer->m_RconClientID].m_State != CServer::CClient::STATE_EMPTY)
 	{
-		if(pServer->IsSevenDown(pServer->m_RconClientID))
+		if(pServer->ClientProtocol(pServer->m_RconClientID) == NETPROTOCOL_SIX)
 		{
 			CMsgPacker Msg(protocol6::NETMSG_RCON_AUTH_STATUS, true, true);
 			Msg.AddInt(0); //authed
@@ -2306,6 +2273,7 @@ int main(int argc, const char **argv)
 	IEngineMasterServer *pEngineMasterServer = CreateEngineMasterServer();
 	IStorage *pStorage = CreateStorage("Teeworlds", IStorage::STORAGETYPE_SERVER, argc, argv);
 	IConfigManager *pConfigManager = CreateConfigManager();
+	INetConverter *pNetConverter = CreateNetConverter(pServer, pConfigManager->Values());
 
 	pServer->InitRegister(&pServer->m_NetServer, pEngineMasterServer, pConfigManager->Values(), pConsole);
 
@@ -2321,6 +2289,7 @@ int main(int argc, const char **argv)
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConsole);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pStorage);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConfigManager);
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pNetConverter);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineMasterServer*>(pEngineMasterServer)); // register as both
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IMasterServer*>(pEngineMasterServer));
 

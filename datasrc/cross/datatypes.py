@@ -213,7 +213,6 @@ class NetObject:
 			lines = ["struct %s : public %s"%(self.struct_name,self.base_struct_name), "{"]
 		else:
 			lines = ["struct %s"%self.struct_name, "{"]
-		lines += ["\tusing is_sevendown = char;"]
 		for v in self.variables:
 			lines += ["\t"+line for line in v.emit_declaration()]
 		lines += ["};"]

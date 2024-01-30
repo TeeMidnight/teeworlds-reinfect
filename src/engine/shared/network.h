@@ -3,7 +3,7 @@
 #ifndef ENGINE_SHARED_NETWORK_H
 #define ENGINE_SHARED_NETWORK_H
 
-#include <engine/protocol.h>
+#include <engine/netconverter.h>
 
 #include "ringbuffer.h"
 #include "huffman.h"

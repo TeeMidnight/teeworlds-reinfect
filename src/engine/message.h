@@ -9,9 +9,9 @@ class CMsgPacker : public CPacker
 {
 	int m_Type;
 	bool m_System;
-	bool m_NoRepack;
+	bool m_Convert;
 public:
-	CMsgPacker(int Type, bool System = false, bool NoRepack = false)
+	CMsgPacker(int Type, bool System = false, bool Convert = true)
 	{
 		Reset();
 		if(Type < 0 || Type > 0x3FFFFFFF)
@@ -19,15 +19,18 @@ public:
 			m_Error = true;
 			return;
 		}
+		
+		if(!Convert)
+			AddInt((Type << 1) | (System ? 1 : 0));
 
 		m_Type = Type;
 		m_System = System;
-		m_NoRepack = NoRepack;
+		m_Convert = Convert;
 	}
 
 	int Type() const { return m_Type; }
 	bool System() const { return m_System; }
-	bool NoRepack() const { return m_NoRepack; }
+	bool Convert() const { return m_Convert; }
 };
 
 class CMsgUnpacker : public CUnpacker

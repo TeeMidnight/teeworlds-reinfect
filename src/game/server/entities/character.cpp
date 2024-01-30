@@ -606,16 +606,18 @@ void CCharacter::TickDefered()
 		Die(m_pPlayer->GetCID(), WEAPON_WORLD);
 	}
 
-	if(Server()->IsSevenDown(m_pPlayer->GetCID()))
+	int Events = m_TriggeredEvents;
+
+	for(int i = 0; i < MAX_CLIENTS; i ++)
 	{
-		int Events = m_TriggeredEvents;
-		int Mask = CmaskAllExceptOne(m_pPlayer->GetCID());
+		if(Server()->ClientProtocol(i) == NETPROTOCOL_SIX)
+		{
+			if(Events&COREEVENTFLAG_GROUND_JUMP && i != m_pPlayer->GetCID()) GameServer()->CreateSound(m_Pos, SOUND_PLAYER_JUMP, CmaskOne(i));
 
-		if(Events&COREEVENTFLAG_GROUND_JUMP) GameServer()->CreateSound(m_Pos, SOUND_PLAYER_JUMP, Mask);
-
-		if(Events&COREEVENTFLAG_HOOK_ATTACH_PLAYER) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_PLAYER, CmaskAll());
-		if(Events&COREEVENTFLAG_HOOK_ATTACH_GROUND) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_GROUND, Mask);
-		if(Events&COREEVENTFLAG_HOOK_HIT_NOHOOK) GameServer()->CreateSound(m_Pos, SOUND_HOOK_NOATTACH, Mask);
+			if(Events&COREEVENTFLAG_HOOK_ATTACH_PLAYER) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_PLAYER, CmaskOne(i));
+			if(Events&COREEVENTFLAG_HOOK_ATTACH_GROUND && i != m_pPlayer->GetCID()) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_GROUND, CmaskOne(i));
+			if(Events&COREEVENTFLAG_HOOK_HIT_NOHOOK && i != m_pPlayer->GetCID()) GameServer()->CreateSound(m_Pos, SOUND_HOOK_NOATTACH, CmaskOne(i));
+		}
 	}
 
 	// update the m_SendCore if needed
@@ -815,16 +817,6 @@ bool CCharacter::TakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int Weap
 	return true;
 }
 
-static int PlayerFlags_SevenToSix(int Flags)
-{
-	int Six = 0;
-	if(Flags & PLAYERFLAG_CHATTING)
-		Six |= protocol6::PLAYERFLAG_CHATTING;
-	if(Flags & PLAYERFLAG_SCOREBOARD)
-		Six |= protocol6::PLAYERFLAG_SCOREBOARD;
-	return Six;
-}
-
 void CCharacter::Snap(int SnappingClient)
 {
 	if(NetworkClipped(SnappingClient))
@@ -853,84 +845,42 @@ void CCharacter::Snap(int SnappingClient)
 		SetEmote(EMOTE_NORMAL, -1);
 	}
 
-	if(Server()->IsSevenDown(SnappingClient))
+	CNetObj_Character Character;
+
+	pCore->Write(&Character);
+
+	Character.m_Tick = Tick;
+	Character.m_Emote = m_EmoteType;
+
+	Character.m_AmmoCount = 0;
+	Character.m_Health = 0;
+	Character.m_Armor = 0;
+	Character.m_TriggeredEvents = m_TriggeredEvents;
+
+	Character.m_Weapon = m_ActiveWeapon;
+	Character.m_AttackTick = m_AttackTick;
+
+	Character.m_Direction = m_Input.m_Direction;
+
+	if(m_pPlayer->GetCID() == SnappingClient || SnappingClient == -1 ||
+		(!Config()->m_SvStrictSpectateMode && m_pPlayer->GetCID() == GameServer()->m_apPlayers[SnappingClient]->GetSpectatorID()))
 	{
-		protocol6::CNetObj_Character *pCharacter = static_cast<protocol6::CNetObj_Character *>(Server()->SnapNewItem(NETOBJTYPE_CHARACTER, m_pPlayer->GetCID(), sizeof(protocol6::CNetObj_Character)));
-		if(!pCharacter)
-			return;
-		pCore->Write(reinterpret_cast<CNetObj_CharacterCore *>(static_cast<protocol6::CNetObj_CharacterCore *>(pCharacter)));
-
-		// set emote
-		if (m_EmoteStop < Server()->Tick())
-		{
-			m_EmoteType = EMOTE_NORMAL;
-			m_EmoteStop = -1;
-		}
-		pCharacter->m_Tick = Tick;
-		pCharacter->m_Emote = m_EmoteType;
-
-		pCharacter->m_AmmoCount = 0;
-		pCharacter->m_Health = 0;
-		pCharacter->m_Armor = 0;
-
-		pCharacter->m_Weapon = m_ActiveWeapon;
-		pCharacter->m_AttackTick = m_AttackTick;
-
-		pCharacter->m_Direction = m_Input.m_Direction;
-
-		if(m_pPlayer->GetCID() == SnappingClient || SnappingClient == -1 ||
-			(!Config()->m_SvStrictSpectateMode && m_pPlayer->GetCID() == GameServer()->m_apPlayers[SnappingClient]->GetSpectatorID()))
-		{
-			pCharacter->m_Health = m_Health;
-			pCharacter->m_Armor = m_Armor;
-			if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0)
-				pCharacter->m_AmmoCount = m_aWeapons[m_ActiveWeapon].m_Ammo;
-		}
-
-		if(pCharacter->m_Emote == EMOTE_NORMAL)
-		{
-			if(250 - ((Server()->Tick() - m_LastAction)%(250)) < 5)
-				pCharacter->m_Emote = EMOTE_BLINK;
-		}
-
-		pCharacter->m_PlayerFlags = PlayerFlags_SevenToSix(GetPlayer()->m_PlayerFlags);
-	}else
-	{
-		CNetObj_Character *pCharacter = static_cast<CNetObj_Character *>(Server()->SnapNewItem(NETOBJTYPE_CHARACTER, m_pPlayer->GetCID(), sizeof(CNetObj_Character)));
-		if(!pCharacter)
-			return;
-		pCore->Write(pCharacter);
-
-		pCharacter->m_Tick = Tick;
-		pCharacter->m_Emote = m_EmoteType;
-
-		pCharacter->m_AmmoCount = 0;
-		pCharacter->m_Health = 0;
-		pCharacter->m_Armor = 0;
-		pCharacter->m_TriggeredEvents = m_TriggeredEvents;
-
-		pCharacter->m_Weapon = m_ActiveWeapon;
-		pCharacter->m_AttackTick = m_AttackTick;
-
-		pCharacter->m_Direction = m_Input.m_Direction;
-
-		if(m_pPlayer->GetCID() == SnappingClient || SnappingClient == -1 ||
-			(!Config()->m_SvStrictSpectateMode && m_pPlayer->GetCID() == GameServer()->m_apPlayers[SnappingClient]->GetSpectatorID()))
-		{
-			pCharacter->m_Health = m_Health;
-			pCharacter->m_Armor = m_Armor;
-			if(m_ActiveWeapon == WEAPON_NINJA)
-				pCharacter->m_AmmoCount = m_Ninja.m_ActivationTick + g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000;
-			else if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0)
-				pCharacter->m_AmmoCount = m_aWeapons[m_ActiveWeapon].m_Ammo;
-		}
-
-		if(pCharacter->m_Emote == EMOTE_NORMAL)
-		{
-			if(5 * Server()->TickSpeed() - ((Server()->Tick() - m_LastAction) % (5 * Server()->TickSpeed())) < 5)
-				pCharacter->m_Emote = EMOTE_BLINK;
-		}
+		Character.m_Health = m_Health;
+		Character.m_Armor = m_Armor;
+		if(m_ActiveWeapon == WEAPON_NINJA)
+			Character.m_AmmoCount = m_Ninja.m_ActivationTick + g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000;
+		else if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0)
+			Character.m_AmmoCount = m_aWeapons[m_ActiveWeapon].m_Ammo;
 	}
+
+	if(Character.m_Emote == EMOTE_NORMAL)
+	{
+		if(5 * Server()->TickSpeed() - ((Server()->Tick() - m_LastAction) % (5 * Server()->TickSpeed())) < 5)
+			Character.m_Emote = EMOTE_BLINK;
+	}
+	
+	if(!NetConverter()->SnapNewItemConvert(&Character, this, NETOBJTYPE_CHARACTER, m_pPlayer->GetCID(), sizeof(CNetObj_Character), SnappingClient))
+		return;
 }
 
 void CCharacter::PostSnap()

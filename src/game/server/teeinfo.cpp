@@ -48,7 +48,7 @@ CTeeInfo::CTeeInfo(const char *apSkinPartNames[6], const int *pUseCustomColors, 
 	}
 }
 
-void CTeeInfo::FromSevenDown()
+void CTeeInfo::FromSix()
 {
 	// reset to default skin
 	for(int p = 0; p < 6; p++)
@@ -99,7 +99,7 @@ void CTeeInfo::FromSevenDown()
 	}
 }
 
-void CTeeInfo::ToSevenDown()
+void CTeeInfo::FromSeven()
 {
 	// reset to default skin
 	str_copy(m_aSkinName, "default", sizeof(m_aSkinName));

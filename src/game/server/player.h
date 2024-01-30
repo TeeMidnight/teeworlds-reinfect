@@ -117,6 +117,7 @@ private:
 
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const;
+	INetConverter *NetConverter() const;
 
 	//
 	bool m_Spawning;

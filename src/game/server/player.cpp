@@ -11,6 +11,7 @@
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
 IServer *CPlayer::Server() const { return m_pGameServer->Server(); }
+INetConverter *CPlayer::NetConverter() const { return m_pGameServer->NetConverter(); }
 
 CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, bool Dummy, bool AsSpec)
 {
@@ -141,85 +142,42 @@ void CPlayer::Snap(int SnappingClient)
 	if(!IsDummy() && !Server()->ClientIngame(m_ClientID))
 		return;
 
-	if(Server()->IsSevenDown(SnappingClient))
+	CNetObj_PlayerInfo PlayerInfo;
+
+	PlayerInfo.m_PlayerFlags = m_PlayerFlags&PLAYERFLAG_CHATTING;
+	if(Server()->IsAuthed(m_ClientID))
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_ADMIN;
+	if(!GameServer()->m_pController->IsPlayerReadyMode() || m_IsReadyToPlay)
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_READY;
+	if(m_RespawnDisabled && (!GetCharacter() || !GetCharacter()->IsAlive()))
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_DEAD;
+	if(SnappingClient != -1 && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode) && (SnappingClient == m_SpectatorID))
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_WATCHING;
+
+	PlayerInfo.m_Latency = SnappingClient == -1 ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aActLatency[m_ClientID];
+	PlayerInfo.m_Score = m_Score;
+
+	if(!NetConverter()->SnapNewItemConvert(&PlayerInfo, this, NETOBJTYPE_PLAYERINFO, m_ClientID, sizeof(PlayerInfo), SnappingClient))
+		return;
+
+	if(m_ClientID == SnappingClient && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode))
 	{
-		protocol6::CNetObj_ClientInfo *pClientInfo = static_cast<protocol6::CNetObj_ClientInfo *>(Server()->SnapNewItem(-protocol6::NETOBJTYPE_CLIENTINFO, m_ClientID, sizeof(protocol6::CNetObj_ClientInfo)));
-		if(!pClientInfo)
-			return;
-		StrToInts(&pClientInfo->m_Name0, 4, Server()->ClientName(m_ClientID));
-		StrToInts(&pClientInfo->m_Clan0, 3, Server()->ClientClan(m_ClientID));
-		pClientInfo->m_Country = Server()->ClientCountry(m_ClientID);
-		StrToInts(&pClientInfo->m_Skin0, 6, m_TeeInfos.m_aSkinName);
-		pClientInfo->m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
-		pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
-		pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
+		CNetObj_SpectatorInfo SpectatorInfo;
 
-		protocol6::CNetObj_PlayerInfo *pPlayerInfo = static_cast<protocol6::CNetObj_PlayerInfo *>(Server()->SnapNewItem(NETOBJTYPE_PLAYERINFO, m_ClientID, sizeof(protocol6::CNetObj_PlayerInfo)));
-		if(!pPlayerInfo)
-			return;
-		pPlayerInfo->m_ClientID = m_ClientID;
-		pPlayerInfo->m_Latency = SnappingClient == -1 ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aActLatency[m_ClientID];
-		pPlayerInfo->m_Score = m_Score;
-		pPlayerInfo->m_Local = SnappingClient == m_ClientID ? 1 : 0;
-		pPlayerInfo->m_Team = m_DeadSpecMode ? TEAM_SPECTATORS : m_Team;
-
-		if(m_ClientID == SnappingClient && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode))
+		SpectatorInfo.m_SpecMode = m_SpecMode;
+		SpectatorInfo.m_SpectatorID = m_SpectatorID;
+		if(m_pSpecFlag)
 		{
-			protocol6::CNetObj_SpectatorInfo *pSpectatorInfo = static_cast<protocol6::CNetObj_SpectatorInfo *>(Server()->SnapNewItem(NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(protocol6::CNetObj_SpectatorInfo)));
-			if(!pSpectatorInfo)
-				return;
-
-			pSpectatorInfo->m_SpectatorID = m_SpectatorID;
-			if(m_pSpecFlag)
-			{
-				pSpectatorInfo->m_X = m_pSpecFlag->GetPos().x;
-				pSpectatorInfo->m_Y = m_pSpecFlag->GetPos().y;
-			}
-			else
-			{
-				pSpectatorInfo->m_X = m_ViewPos.x;
-				pSpectatorInfo->m_Y = m_ViewPos.y;
-			}
+			SpectatorInfo.m_X = m_pSpecFlag->GetPos().x;
+			SpectatorInfo.m_Y = m_pSpecFlag->GetPos().y;
 		}
-	}
-	else
-	{
-		CNetObj_PlayerInfo *pPlayerInfo = static_cast<CNetObj_PlayerInfo *>(Server()->SnapNewItem(NETOBJTYPE_PLAYERINFO, m_ClientID, sizeof(CNetObj_PlayerInfo)));
-		if(!pPlayerInfo)
-			return;
-
-		pPlayerInfo->m_PlayerFlags = m_PlayerFlags&PLAYERFLAG_CHATTING;
-		if(Server()->IsAuthed(m_ClientID))
-			pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_ADMIN;
-		if(!GameServer()->m_pController->IsPlayerReadyMode() || m_IsReadyToPlay)
-			pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_READY;
-		if(m_RespawnDisabled && (!GetCharacter() || !GetCharacter()->IsAlive()))
-			pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_DEAD;
-		if(SnappingClient != -1 && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode) && (SnappingClient == m_SpectatorID))
-			pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_WATCHING;
-
-		pPlayerInfo->m_Latency = SnappingClient == -1 ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aActLatency[m_ClientID];
-		pPlayerInfo->m_Score = m_Score;
-
-		if(m_ClientID == SnappingClient && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode))
+		else
 		{
-			CNetObj_SpectatorInfo *pSpectatorInfo = static_cast<CNetObj_SpectatorInfo *>(Server()->SnapNewItem(NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(CNetObj_SpectatorInfo)));
-			if(!pSpectatorInfo)
-				return;
-
-			pSpectatorInfo->m_SpecMode = m_SpecMode;
-			pSpectatorInfo->m_SpectatorID = m_SpectatorID;
-			if(m_pSpecFlag)
-			{
-				pSpectatorInfo->m_X = m_pSpecFlag->GetPos().x;
-				pSpectatorInfo->m_Y = m_pSpecFlag->GetPos().y;
-			}
-			else
-			{
-				pSpectatorInfo->m_X = m_ViewPos.x;
-				pSpectatorInfo->m_Y = m_ViewPos.y;
-			}
+			SpectatorInfo.m_X = m_ViewPos.x;
+			SpectatorInfo.m_Y = m_ViewPos.y;
 		}
+		if(!NetConverter()->SnapNewItemConvert(&SpectatorInfo, this, NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(PlayerInfo), SnappingClient))
+			return;
 	}
 
 	// demo recording
@@ -278,7 +236,7 @@ void CPlayer::OnPredictedInput(CNetObj_PlayerInput *NewInput)
 	if(m_pCharacter)
 		m_pCharacter->OnPredictedInput(NewInput);
 
-	if(m_NumInputs == 200 && Server()->IsSevenDown(m_ClientID))
+	if(m_NumInputs == 200 && Server()->ClientProtocol(m_ClientID) == NETPROTOCOL_SIX)
 	{
 		GameServer()->SendChat(-1, CHAT_WHISPER, m_ClientID, "This server uses an experimental translation to support 0.6 (based on 0.7).");
 		GameServer()->SendChat(-1, CHAT_WHISPER, m_ClientID, "Please report bugs on github.com/Bamcane/TeeGlue");

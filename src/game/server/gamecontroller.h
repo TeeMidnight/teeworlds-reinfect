@@ -98,6 +98,7 @@ class IGameController
 
 protected:
 	CGameContext *GameServer() const { return m_pGameServer; }
+	class INetConverter *NetConverter() const;
 	CConfig *Config() const { return m_pConfig; }
 	IServer *Server() const { return m_pServer; }
 
@@ -229,7 +230,11 @@ public:
 	int GetRealPlayerNum() const { return m_aTeamSize[TEAM_RED]+m_aTeamSize[TEAM_BLUE]; }
 	int GetStartTeam();
 
-	//static void Com_Example(IConsole::IResult *pResult, void *pContext);
+	int GameFlags() const { return m_GameFlags; }
+	int MatchCount() const { return m_MatchCount; }
+	int TeamScore(int Team) const { return m_aTeamscore[Team]; }
+
+	static void ComWhisper(IConsole::IResult *pResult, void *pContext);
 	virtual void RegisterChatCommands(CCommandManager *pManager);
 };
 

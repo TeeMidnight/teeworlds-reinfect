@@ -27,8 +27,6 @@ public:
 	void *Create(int Type, int Size, int64 Mask = -1);
 	void Clear();
 	void Snap(int SnappingClient);
-
-	void EventToSevenDown(int *pType, int *pSize, const char **ppData);
 };
 
 #endif

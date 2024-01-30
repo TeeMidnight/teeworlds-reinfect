@@ -23,7 +23,7 @@ public:
 	// This constructor will assume all arrays are of length 6
 	CTeeInfo(const char *apSkinPartNames[6], const int *pUseCustomColors, const int *pSkinPartColors);
 
-	void ToSevenDown();
-	void FromSevenDown();
+	void FromSeven();
+	void FromSix();
 };
 #endif //GAME_SERVER_TEEINFO_H

@@ -2,15 +2,9 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef ENGINE_SERVER_H
 #define ENGINE_SERVER_H
+
 #include "kernel.h"
 #include "message.h"
-
-#include <type_traits>
-
-#include <engine/shared/protocol.h>
-#include <generated/protocol.h>
-#include <generated/protocol6.h>
-#include <generated/protocolglue.h>
 
 class IServer : public IInterface
 {
@@ -35,26 +29,19 @@ public:
 	virtual const char *ClientName(int ClientID) const = 0;
 	virtual const char *ClientClan(int ClientID) const = 0;
 	virtual int ClientCountry(int ClientID) const = 0;
+	virtual int ClientProtocol(int ClientID) const = 0;
 	virtual bool ClientIngame(int ClientID) const = 0;
+
 	virtual int GetClientInfo(int ClientID, CClientInfo *pInfo) const = 0;
 	virtual void GetClientAddr(int ClientID, char *pAddrStr, int Size) const = 0;
 	virtual int GetClientVersion(int ClientID) const = 0;
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID) = 0;
 
-	template<class T, typename std::enable_if<!protocol6::is_sevendown<T>::value, int>::type = 0>
-	int SendPackMsg(T *pMsg, int Flags, int ClientID)
+	template<class T>
+	int SendPackMsg(T *pMsg, int Flags, int ClientID, bool Convert = true)
 	{
-		CMsgPacker Packer(pMsg->MsgID(), false);
-		if(pMsg->Pack(&Packer))
-			return -1;
-		return SendMsg(&Packer, Flags, ClientID);
-	}
-
-	template<class T, typename std::enable_if<protocol6::is_sevendown<T>::value, int>::type = 1>
-	int SendPackMsg(T *pMsg, int Flags, int ClientID)
-	{
-		CMsgPacker Packer(pMsg->MsgID(), false, true);
+		CMsgPacker Packer(pMsg->MsgID(), false, Convert);
 		if(pMsg->Pack(&Packer))
 			return -1;
 		return SendMsg(&Packer, Flags, ClientID);
@@ -85,7 +72,7 @@ public:
 	virtual void DemoRecorder_HandleAutoStart() = 0;
 	virtual bool DemoRecorder_IsRecording() = 0;
 
-	virtual bool IsSevenDown(int ClientID) const = 0;
+	virtual void SendServerInfo(int ClientID) = 0;
 };
 
 class IGameServer : public IInterface

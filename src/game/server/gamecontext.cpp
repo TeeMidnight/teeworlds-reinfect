@@ -6,9 +6,11 @@
 #include <engine/shared/memheap.h>
 #include <engine/storage.h>
 #include <engine/map.h>
+#include <engine/netconverter.h>
 
 #include <generated/server_data.h>
 #include <generated/protocol6.h>
+#include <generated/protocolglue.h>
 #include <game/collision.h>
 #include <game/gamecore.h>
 #include <game/version.h>
@@ -191,31 +193,7 @@ void CGameContext::CreateSound(vec2 Pos, int Sound, int64 Mask)
 	}
 }
 
-void CGameContext::CreateSoundGlobal(int Sound, int Target)
-{
-	if (Sound < 0)
-		return;
-
-	protocol6::CNetMsg_Sv_SoundGlobal Msg;
-	Msg.m_SoundID = Sound;
-	
-	if(Target == -1)
-	{
-		for(int i = 0; i < MAX_CLIENTS; i ++)
-		{
-			if(Server()->IsSevenDown(i))
-			{
-				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
-			}
-		}
-	}else if(Server()->IsSevenDown(Target))
-	{
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, Target);
-	}
-
-}
-
-void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *pText, bool OnlySix)
+void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *pText)
 {
 	char aBuf[256];
 	if(ChatterClientID >= 0 && ChatterClientID < MAX_CLIENTS)
@@ -244,31 +222,15 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *p
 		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, pModeStr, aBuf);
 	}
 
-	
+
 	CNetMsg_Sv_Chat Msg;
 	Msg.m_Mode = Mode;
 	Msg.m_ClientID = ChatterClientID;
 	Msg.m_pMessage = pText;
 	Msg.m_TargetID = -1;
 
-	protocol6::CNetMsg_Sv_Chat Msg6;
-	Msg6.m_Team = Mode == CHAT_TEAM || Mode == CHAT_WHISPER;
-	Msg6.m_ClientID = ChatterClientID;
-	Msg6.m_pMessage = pText;
-
 	if(Mode == CHAT_ALL)
-	{
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			if(m_apPlayers[i])
-			{
-				if(Server()->IsSevenDown(i))
-					Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
-				else if(!OnlySix)
-				 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
-			}
-		}
-	}
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 	else if(Mode == CHAT_TEAM)
 	{
 		// pack one for the recording only
@@ -280,12 +242,7 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *p
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() == To)
-			{
-				if(Server()->IsSevenDown(i))
-					Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
-				else if(!OnlySix)
-				 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
-			}
+				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
 		}
 	}
 	else // Mode == CHAT_WHISPER
@@ -293,17 +250,8 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *p
 		// send to the clients
 		Msg.m_TargetID = To;
 		if(ChatterClientID != -1)
-		{
-			if(Server()->IsSevenDown(ChatterClientID))
-				Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, ChatterClientID);
-			else
-				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
-		}
-
-		if(Server()->IsSevenDown(To))
-			Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, To);
-		else
-			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, To);
+			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, To);
 	}
 }
 
@@ -338,7 +286,7 @@ void CGameContext::SendMotd(int ClientID)
 
 void CGameContext::SendSettings(int ClientID)
 {
-	if(Server()->IsSevenDown(ClientID))
+	if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
 		return;
 
 	CNetMsg_Sv_ServerSettings Msg;
@@ -483,33 +431,7 @@ void CGameContext::SendVoteSet(int Type, int ToClientID)
 		Msg.m_pDescription = "";
 		Msg.m_pReason = "";
 	}
-	
-	if(ToClientID == -1)
-	{
-		for(int i = 0; i < MAX_CLIENTS; i ++)
-		{
-			if(Server()->IsSevenDown(i))
-			{
-				protocol6::CNetMsg_Sv_VoteSet Msg6;
-				Msg6.m_Timeout = Msg.m_Timeout;
-				Msg6.m_pDescription = Msg.m_pDescription;
-				Msg6.m_pReason = Msg.m_pReason;
-				Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, i);
-			}
-			else if(m_apPlayers[i])
-				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
-		}
-	}
-	else if(Server()->IsSevenDown(ToClientID))
-	{
-		protocol6::CNetMsg_Sv_VoteSet Msg6;
-		Msg6.m_Timeout = Msg.m_Timeout;
-		Msg6.m_pDescription = Msg.m_pDescription;
-		Msg6.m_pReason = Msg.m_pReason;
-		Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, ToClientID);
-	}
-	else
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ToClientID);
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ToClientID);
 }
 
 void CGameContext::SendVoteStatus(int ClientID, int Total, int Yes, int No)
@@ -566,18 +488,7 @@ void CGameContext::SendTuningParams(int ClientID)
 	CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS);
 	int *pParams = (int *)&m_Tuning;
 	for(unsigned i = 0; i < sizeof(m_Tuning) / sizeof(int); i++)
-	{
-		if((i == 29) // laser_damage is removed from 0.7
-			&& (Server()->IsSevenDown(ClientID)))
-		{
-			Msg.AddInt(pParams[i]);
-			Msg.AddInt(g_pData->m_Weapons.m_aId[WEAPON_LASER].m_Damage);
-		}
-		else
-		{
-			Msg.AddInt(pParams[i]); // if everything is normal just send true tunings
-		}
-	}
+		Msg.AddInt(pParams[i]);
 
 	Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
@@ -625,7 +536,6 @@ void CGameContext::OnTick()
 		// abort the kick-vote on player-leave
 		if(m_VoteCloseTime == -1)
 		{
-			SendChat(-1, CHAT_ALL, -1, "Vote aborted", true);
 			EndVote(VOTE_END_ABORT, false);
 		}
 		else
@@ -677,12 +587,10 @@ void CGameContext::OnTick()
 				if(m_VoteCreator != -1 && m_apPlayers[m_VoteCreator])
 					m_apPlayers[m_VoteCreator]->m_LastVoteCallTick = 0;
 
-				SendChat(-1, CHAT_ALL, -1, "Vote passed", true);
 				EndVote(VOTE_END_PASS, m_VoteEnforce == VOTE_CHOICE_YES);
 			}
 			else if(m_VoteEnforce == VOTE_CHOICE_NO || (m_VoteUpdate && No >= (Total+1)/2) || time_get() > m_VoteCloseTime)
 			{		
-				SendChat(-1, CHAT_ALL, -1, "Vote failed", true);
 				EndVote(VOTE_END_FAIL, m_VoteEnforce == VOTE_CHOICE_NO);
 			}
 			else if(m_VoteUpdate)
@@ -721,7 +629,7 @@ static int PlayerFlags_SixToSeven(int Flags)
 void CGameContext::OnClientDirectInput(int ClientID, void *pInput)
 {
 	auto *pPlayerInput = (CNetObj_PlayerInput *)pInput;
-	if(Server()->IsSevenDown(ClientID))
+	if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
 		pPlayerInput->m_PlayerFlags = PlayerFlags_SixToSeven(pPlayerInput->m_PlayerFlags);
 
 	int NumFailures = m_NetObjHandler.NumObjFailures();
@@ -911,9 +819,10 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 
 void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientID)
 {
-	if(Server()->IsSevenDown(ClientID))
+	if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
 	{
-		void *pRawMsg = m_NetObjHandler6.SecureUnpackMsg(*pMsgID, pUnpacker);
+		protocol6::CNetObjHandler NetObjHandler6;
+		void *pRawMsg = NetObjHandler6.SecureUnpackMsg(*pMsgID, pUnpacker);
 		if(!pRawMsg)
 			return 0;
 
@@ -923,12 +832,29 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 		if(*pMsgID == protocol6::NETMSGTYPE_CL_SAY)
 		{
 			protocol6::CNetMsg_Cl_Say *pMsg6 = (protocol6::CNetMsg_Cl_Say *)pRawMsg;
-			// Should probably use a placement new to start the lifetime of the object to avoid future weirdness
-			::CNetMsg_Cl_Say *pMsg = (::CNetMsg_Cl_Say *)s_aRawMsg;
 
-			pMsg->m_pMessage = pMsg6->m_pMessage;
-			pMsg->m_Mode = pMsg6->m_Team ? CHAT_TEAM : CHAT_ALL;
-			
+			if(*pMsg6->m_pMessage && pMsg6->m_pMessage[0] == '/')
+			{
+				const char *pCommandStr = pMsg6->m_pMessage;
+				char aCommand[16];
+				str_format(aCommand, sizeof(aCommand), "%.*s", str_span(pCommandStr + 1, " "), pCommandStr + 1);
+				const CCommandManager::CCommand *pCommand = m_CommandManager.GetCommand(aCommand);
+				if(!pCommand)
+				{
+					SendChat(-1, CHAT_WHISPER, ClientID, "No such command");
+					return 0;
+				}
+				
+				m_CommandManager.OnCommand(pCommand->m_aName, str_skip_whitespaces_const(str_skip_to_whitespace_const(pCommandStr)), ClientID);
+				*pMsgID = -2;
+				return 0;
+			}
+			else
+			{
+				::CNetMsg_Cl_Say *pMsg = (::CNetMsg_Cl_Say *)s_aRawMsg;
+				pMsg->m_pMessage = pMsg6->m_pMessage;
+				pMsg->m_Mode = pMsg6->m_Team ? CHAT_TEAM : CHAT_ALL;
+			}
 		}
 		else if(*pMsgID == protocol6::NETMSGTYPE_CL_STARTINFO)
 		{
@@ -940,7 +866,7 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 			pMsg->m_Country = pMsg6->m_Country;
 
 			CTeeInfo Info(pMsg6->m_pSkin, pMsg6->m_UseCustomColor, pMsg6->m_ColorBody, pMsg6->m_ColorFeet);
-			Info.FromSevenDown();
+			Info.FromSix();
 			pPlayer->m_TeeInfos = Info;
 
 			for(int i = 0; i < 6; i ++)
@@ -982,7 +908,7 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 			pPlayer->m_TeeInfos.m_UseCustomColor = pMsg->m_UseCustomColor;
 			pPlayer->m_TeeInfos.m_ColorBody = pMsg->m_ColorBody;
 			pPlayer->m_TeeInfos.m_ColorFeet = pMsg->m_ColorFeet;
-			pPlayer->m_TeeInfos.FromSevenDown();
+			pPlayer->m_TeeInfos.FromSix();
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 
@@ -1011,7 +937,7 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if(Server()->IsSevenDown(i))
+					if(Server()->ClientProtocol(i) == NETPROTOCOL_SIX)
 						continue;
 					if(i != ClientID)
 					{
@@ -1025,7 +951,7 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 				// update all clients
 				for(int i = 0; i < MAX_CLIENTS; ++i)
 				{
-					if(Server()->IsSevenDown(i))
+					if(Server()->ClientProtocol(i) == NETPROTOCOL_SIX)
 						continue;
 					if(!m_apPlayers[i] || (!Server()->ClientIngame(i) && !m_apPlayers[i]->IsDummy()) || Server()->GetClientVersion(i) < MIN_SKINCHANGE_CLIENTVERSION)
 						continue;
@@ -1088,6 +1014,11 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 {
 	CPlayer *pPlayer = m_apPlayers[ClientID];
 	void *pRawMsg = PreProcessMsg(&MsgID, pUnpacker, ClientID);
+
+	if(MsgID == -2)
+	{
+		return;
+	}
 
 	if(!pRawMsg)
 	{
@@ -1386,8 +1317,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
 				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
-			if(!Server()->IsSevenDown(ClientID))
-				pPlayer->m_TeeInfos.ToSevenDown();
+			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SEVEN)
+				pPlayer->m_TeeInfos.FromSeven();
 
 			// update all clients
 			for(int i = 0; i < MAX_CLIENTS; ++i)
@@ -1427,8 +1358,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
 				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
-			if(!Server()->IsSevenDown(ClientID))
-				pPlayer->m_TeeInfos.ToSevenDown();
+			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SEVEN)
+				pPlayer->m_TeeInfos.FromSeven();
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 
@@ -1436,93 +1367,22 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			CNetMsg_Sv_VoteClearOptions ClearMsg;
 			Server()->SendPackMsg(&ClearMsg, MSGFLAG_VITAL, ClientID);
 
-			if(Server()->IsSevenDown(ClientID))
+			CVoteOptionServer *pCurrent = m_pVoteOptionFirst;
+			while(pCurrent)
 			{
-				protocol6::CNetMsg_Sv_VoteOptionListAdd OptionMsg;
+				// count options for actual packet
 				int NumOptions = 0;
-				OptionMsg.m_pDescription0 = "";
-				OptionMsg.m_pDescription1 = "";
-				OptionMsg.m_pDescription2 = "";
-				OptionMsg.m_pDescription3 = "";
-				OptionMsg.m_pDescription4 = "";
-				OptionMsg.m_pDescription5 = "";
-				OptionMsg.m_pDescription6 = "";
-				OptionMsg.m_pDescription7 = "";
-				OptionMsg.m_pDescription8 = "";
-				OptionMsg.m_pDescription9 = "";
-				OptionMsg.m_pDescription10 = "";
-				OptionMsg.m_pDescription11 = "";
-				OptionMsg.m_pDescription12 = "";
-				OptionMsg.m_pDescription13 = "";
-				OptionMsg.m_pDescription14 = "";
-				CVoteOptionServer *pCurrent = m_pVoteOptionFirst;
-				while(pCurrent)
+				for(CVoteOptionServer *p = pCurrent; p && NumOptions < MAX_VOTE_OPTION_ADD; p = p->m_pNext, ++NumOptions);
+
+				// pack and send vote list packet
+				CMsgPacker Msg(NETMSGTYPE_SV_VOTEOPTIONLISTADD);
+				Msg.AddInt(NumOptions);
+				while(pCurrent && NumOptions--)
 				{
-					switch(NumOptions++)
-					{
-					case 0: OptionMsg.m_pDescription0 = pCurrent->m_aDescription; break;
-					case 1: OptionMsg.m_pDescription1 = pCurrent->m_aDescription; break;
-					case 2: OptionMsg.m_pDescription2 = pCurrent->m_aDescription; break;
-					case 3: OptionMsg.m_pDescription3 = pCurrent->m_aDescription; break;
-					case 4: OptionMsg.m_pDescription4 = pCurrent->m_aDescription; break;
-					case 5: OptionMsg.m_pDescription5 = pCurrent->m_aDescription; break;
-					case 6: OptionMsg.m_pDescription6 = pCurrent->m_aDescription; break;
-					case 7: OptionMsg.m_pDescription7 = pCurrent->m_aDescription; break;
-					case 8: OptionMsg.m_pDescription8 = pCurrent->m_aDescription; break;
-					case 9: OptionMsg.m_pDescription9 = pCurrent->m_aDescription; break;
-					case 10: OptionMsg.m_pDescription10 = pCurrent->m_aDescription; break;
-					case 11: OptionMsg.m_pDescription11 = pCurrent->m_aDescription; break;
-					case 12: OptionMsg.m_pDescription12 = pCurrent->m_aDescription; break;
-					case 13: OptionMsg.m_pDescription13 = pCurrent->m_aDescription; break;
-					case 14:
-						{
-							OptionMsg.m_pDescription14 = pCurrent->m_aDescription;
-							OptionMsg.m_NumOptions = NumOptions;
-							Server()->SendPackMsg(&OptionMsg, MSGFLAG_VITAL, ClientID);
-							OptionMsg = protocol6::CNetMsg_Sv_VoteOptionListAdd();
-							NumOptions = 0;
-							OptionMsg.m_pDescription1 = "";
-							OptionMsg.m_pDescription2 = "";
-							OptionMsg.m_pDescription3 = "";
-							OptionMsg.m_pDescription4 = "";
-							OptionMsg.m_pDescription5 = "";
-							OptionMsg.m_pDescription6 = "";
-							OptionMsg.m_pDescription7 = "";
-							OptionMsg.m_pDescription8 = "";
-							OptionMsg.m_pDescription9 = "";
-							OptionMsg.m_pDescription10 = "";
-							OptionMsg.m_pDescription11 = "";
-							OptionMsg.m_pDescription12 = "";
-							OptionMsg.m_pDescription13 = "";
-							OptionMsg.m_pDescription14 = "";
-						}
-					}
+					Msg.AddString(pCurrent->m_aDescription, VOTE_DESC_LENGTH);
 					pCurrent = pCurrent->m_pNext;
 				}
-				if(NumOptions > 0)
-				{
-					OptionMsg.m_NumOptions = NumOptions;
-					Server()->SendPackMsg(&OptionMsg, MSGFLAG_VITAL, ClientID);
-				}
-			}else
-			{
-				CVoteOptionServer *pCurrent = m_pVoteOptionFirst;
-				while(pCurrent)
-				{
-					// count options for actual packet
-					int NumOptions = 0;
-					for(CVoteOptionServer *p = pCurrent; p && NumOptions < MAX_VOTE_OPTION_ADD; p = p->m_pNext, ++NumOptions);
-
-					// pack and send vote list packet
-					CMsgPacker Msg(NETMSGTYPE_SV_VOTEOPTIONLISTADD);
-					Msg.AddInt(NumOptions);
-					while(pCurrent && NumOptions--)
-					{
-						Msg.AddString(pCurrent->m_aDescription, VOTE_DESC_LENGTH);
-						pCurrent = pCurrent->m_pNext;
-					}
-					Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
-				}
+				Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 			}
 
 			// send tuning parameters to client
@@ -1969,9 +1829,12 @@ void CGameContext::OnInit()
 	m_pConfig = Kernel()->RequestInterface<IConfigManager>()->Values();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
+	m_pNetConverter = Kernel()->RequestInterface<INetConverter>();
 	m_World.SetGameServer(this);
 	m_Events.SetGameServer(this);
 	m_CommandManager.Init(m_pConsole, this, NewCommandHook, RemoveCommandHook);
+
+	m_pNetConverter->Init(this);
 	
 	// HACK: only set static size for items, which were available in the first 0.7 release
 	// so new items don't break the snapshot delta

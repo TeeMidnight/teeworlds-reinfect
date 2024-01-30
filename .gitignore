@@ -2,6 +2,7 @@ bam
 .bam
 config.lua
 datasrc/__pycache__
+datasrc/cross/__pycache__
 datasrc/*.pyc
 objs
 SDL.dll

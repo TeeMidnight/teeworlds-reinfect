@@ -5,6 +5,8 @@
 #include "gamecontext.h"
 #include "player.h"
 
+INetConverter *CEntity::NetConverter() { return m_pGameWorld->GameServer()->NetConverter(); }
+
 CEntity::CEntity(CGameWorld *pGameWorld, int ObjType, vec2 Pos, int ProximityRadius)
 {
 	m_pGameWorld = pGameWorld;

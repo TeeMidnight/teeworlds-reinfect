@@ -67,13 +67,15 @@ class CServer : public IServer
 	class CConfig *m_pConfig;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	class INetConverter *m_pNetConverter;
 public:
 	class IGameServer *GameServer() { return m_pGameServer; }
 	class CConfig *Config() { return m_pConfig; }
 	class IConsole *Console() { return m_pConsole; }
 	class IStorage *Storage() { return m_pStorage; }
+	class INetConverter *NetConverter() { return m_pNetConverter; }
 
-	enum
+	enum 
 	{
 		AUTHED_NO=0,
 		AUTHED_MOD,
@@ -248,6 +250,7 @@ public:
 	const char *ClientName(int ClientID) const;
 	const char *ClientClan(int ClientID) const;
 	int ClientCountry(int ClientID) const;
+	int ClientProtocol(int ClientID) const override;
 	bool ClientIngame(int ClientID) const;
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID);
@@ -315,7 +318,6 @@ public:
 	virtual void *SnapNewItem(int Type, int ID, int Size);
 	void SnapSetStaticsize(int ItemType, int Size);
 
-	virtual bool IsSevenDown(int ClientID) const override { return ClientID != -1 && m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX; }
 };
 
 #endif

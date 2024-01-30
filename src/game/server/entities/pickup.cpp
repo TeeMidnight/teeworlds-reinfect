@@ -134,73 +134,17 @@ void CPickup::TickPaused()
 		++m_SpawnTick;
 }
 
-static int PickupType(int Pickup)
-{
-	switch (Pickup)
-	{
-	case PICKUP_HEALTH: 
-		return protocol6::POWERUP_HEALTH;
-	case PICKUP_ARMOR: 
-		return protocol6::POWERUP_ARMOR;
-	case PICKUP_HAMMER: 
-	case PICKUP_GUN: 
-	case PICKUP_SHOTGUN: 
-	case PICKUP_GRENADE:
-	case PICKUP_LASER:  
-		return protocol6::POWERUP_WEAPON;
-	case PICKUP_NINJA: 
-		return protocol6::POWERUP_NINJA;
-	}
-	return 0;
-}
-
-static int PickupSubtype(int Pickup)
-{
-	switch (Pickup)
-	{
-	case PICKUP_HEALTH: 
-	case PICKUP_ARMOR: 
-		return 0;
-	case PICKUP_HAMMER: 
-		return WEAPON_HAMMER;
-	case PICKUP_GUN: 
-		return WEAPON_GUN;
-	case PICKUP_SHOTGUN: 
-		return WEAPON_SHOTGUN;
-	case PICKUP_GRENADE:
-		return WEAPON_GRENADE;
-	case PICKUP_LASER:  
-		return WEAPON_LASER;
-	case PICKUP_NINJA: 
-		return WEAPON_NINJA;
-	}
-	return 0;
-}
-
 void CPickup::Snap(int SnappingClient)
 {
 	if(m_SpawnTick != -1 || NetworkClipped(SnappingClient))
 		return;
 
-	if(Server()->IsSevenDown(SnappingClient))
-	{
-		protocol6::CNetObj_Pickup *pP = static_cast<protocol6::CNetObj_Pickup *>(Server()->SnapNewItem(NETOBJTYPE_PICKUP, GetID(), sizeof(protocol6::CNetObj_Pickup)));
-		if(!pP)
-			return;
+	CNetObj_Pickup Pickup;
 
-		pP->m_X = round_to_int(m_Pos.x);
-		pP->m_Y = round_to_int(m_Pos.y);
-		pP->m_Type = PickupType(m_Type);
-		pP->m_Subtype = PickupSubtype(m_Type);
-	}
-	else
-	{
-		CNetObj_Pickup *pP = static_cast<CNetObj_Pickup *>(Server()->SnapNewItem(NETOBJTYPE_PICKUP, GetID(), sizeof(CNetObj_Pickup)));
-		if(!pP)
-			return;
+	Pickup.m_X = round_to_int(m_Pos.x);
+	Pickup.m_Y = round_to_int(m_Pos.y);
+	Pickup.m_Type = m_Type;
 
-		pP->m_X = round_to_int(m_Pos.x);
-		pP->m_Y = round_to_int(m_Pos.y);
-		pP->m_Type = m_Type;
-	}
+	if(!NetConverter()->SnapNewItemConvert(&Pickup, this, NETOBJTYPE_PICKUP, GetID(), sizeof(CNetObj_Pickup), SnappingClient))
+		return;
 }

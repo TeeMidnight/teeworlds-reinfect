@@ -102,13 +102,14 @@ void CLaser::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient) && NetworkClipped(SnappingClient, m_From))
 		return;
 
-	CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, GetID(), sizeof(CNetObj_Laser)));
-	if(!pObj)
-		return;
+	CNetObj_Laser Obj;
 
-	pObj->m_X = round_to_int(m_Pos.x);
-	pObj->m_Y = round_to_int(m_Pos.y);
-	pObj->m_FromX = round_to_int(m_From.x);
-	pObj->m_FromY = round_to_int(m_From.y);
-	pObj->m_StartTick = m_EvalTick;
+	Obj.m_X = round_to_int(m_Pos.x);
+	Obj.m_Y = round_to_int(m_Pos.y);
+	Obj.m_FromX = round_to_int(m_From.x);
+	Obj.m_FromY = round_to_int(m_From.y);
+	Obj.m_StartTick = m_EvalTick;
+	
+	if(!NetConverter()->SnapNewItemConvert(&Obj, this, NETOBJTYPE_LASER, GetID(), sizeof(CNetObj_Laser), SnappingClient))
+		return;
 }

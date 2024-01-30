@@ -5,7 +5,7 @@
 
 #include <engine/console.h>
 #include <engine/server.h>
-#include <engine/protocol.h>
+#include <engine/netconverter.h>
 
 #include <game/commands.h>
 #include <game/layers.h>
@@ -41,9 +41,9 @@ class CGameContext : public IGameServer
 	class CConfig *m_pConfig;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	class INetConverter *m_pNetConverter;
 	CLayers m_Layers;
 	CCollision m_Collision;
-	protocol6::CNetObjHandler m_NetObjHandler6;
 	CNetObjHandler m_NetObjHandler;
 	CTuningParams m_Tuning;
 
@@ -81,6 +81,7 @@ public:
 	class CConfig *Config() { return m_pConfig; }
 	class IConsole *Console() { return m_pConsole; }
 	class IStorage *Storage() { return m_pStorage; }
+	class INetConverter *NetConverter() { return m_pNetConverter; }
 	CCollision *Collision() { return &m_Collision; }
 	CTuningParams *Tuning() { return &m_Tuning; }
 
@@ -143,11 +144,9 @@ public:
 	void CreatePlayerSpawn(vec2 Pos);
 	void CreateDeath(vec2 Pos, int Who);
 	void CreateSound(vec2 Pos, int Sound, int64 Mask=-1);
-	// only for sevendown
-	void CreateSoundGlobal(int Sound, int Target);
 
 	// network
-	void SendChat(int ChatterClientID, int Mode, int To, const char *pText, bool OnlySix = false);
+	void SendChat(int ChatterClientID, int Mode, int To, const char *pText);
 	void SendBroadcast(const char *pText, int ClientID);
 	void SendEmoticon(int ClientID, int Emoticon);
 	void SendWeaponPickup(int ClientID, int Weapon);

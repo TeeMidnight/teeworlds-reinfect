@@ -1367,12 +1367,15 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			CNetMsg_Sv_VoteClearOptions ClearMsg;
 			Server()->SendPackMsg(&ClearMsg, MSGFLAG_VITAL, ClientID);
 
+			int MaxOptions = MAX_VOTE_OPTION_ADD;
+			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+				MaxOptions = MAX_VOTE_OPTION_ADD6;
 			CVoteOptionServer *pCurrent = m_pVoteOptionFirst;
 			while(pCurrent)
 			{
 				// count options for actual packet
 				int NumOptions = 0;
-				for(CVoteOptionServer *p = pCurrent; p && NumOptions < MAX_VOTE_OPTION_ADD; p = p->m_pNext, ++NumOptions);
+				for(CVoteOptionServer *p = pCurrent; p && NumOptions < MaxOptions; p = p->m_pNext, ++NumOptions);
 
 				// pack and send vote list packet
 				CMsgPacker Msg(NETMSGTYPE_SV_VOTEOPTIONLISTADD);

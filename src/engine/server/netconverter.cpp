@@ -312,6 +312,7 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
         case NETMSGTYPE_SV_WEAPONPICKUP:
         case NETMSGTYPE_SV_EMOTICON:
         case NETMSGTYPE_SV_VOTECLEAROPTIONS:
+        case NETMSGTYPE_SV_VOTEOPTIONLISTADD:
         case NETMSGTYPE_SV_VOTEOPTIONADD:
         case NETMSGTYPE_SV_VOTEOPTIONREMOVE:
         case NETMSGTYPE_SV_VOTESTATUS:
@@ -393,55 +394,6 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
             }while(Unpacker.Error());
 
             return Server()->SendMsg(&Msg6, Flags, ToClientID);
-        }
-        case NETMSGTYPE_SV_VOTEOPTIONLISTADD:
-        {
-            int NumOptions = Unpacker.GetInt();
-            CMsgPacker Msg6(protocol6::NETMSGTYPE_SV_VOTEOPTIONLISTADD, false, false);
-            
-            if(NumOptions <= 14)
-            {
-                Msg6.AddInt(NumOptions);
-                for(int i = 0; i < NumOptions; i ++)
-                {
-                    pMsg->AddString(Unpacker.GetString(CUnpacker::SANITIZE_CC), -1);
-                    if(Unpacker.Error())
-                        return -1;
-                }
-                for(int i = NumOptions; i < 14; i ++)
-                {
-                    pMsg->AddString("", -1);
-                }
-                return Server()->SendMsg(&Msg6, Flags, ToClientID);
-            }else
-            {
-                while (NumOptions > 0)
-                {
-                    Msg6.Reset();
-
-                    if(NumOptions <= 14)
-                        Msg6.AddInt(NumOptions);
-                    else
-                        Msg6.AddInt(14); // 0.6 a msg max is 14
-
-                    for(int i = 0; i < NumOptions; i ++)
-                    {
-                        pMsg->AddString(Unpacker.GetString(CUnpacker::SANITIZE_CC), -1);
-                        if(Unpacker.Error())
-                            return -1;
-                    }
-                    if(NumOptions <= 14)
-                    {
-                        for(int i = NumOptions; i < 14; i ++)
-                        {
-                            pMsg->AddString("", -1);
-                        }
-                    }
-                    NumOptions -= 14;
-                    Server()->SendMsg(&Msg6, Flags, ToClientID);
-                }
-                return 0;
-            }
         }
         case NETMSGTYPE_SV_VOTESET:
         {

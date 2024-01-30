@@ -890,12 +890,13 @@ void *CGameContext::PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientI
 			// set infos
 			char aOldName[MAX_NAME_LENGTH];
 			str_copy(aOldName, Server()->ClientName(ClientID), sizeof(aOldName));
-			Server()->SetClientName(ClientID, pMsg->m_pName);
 			if(str_comp(aOldName, Server()->ClientName(ClientID)) != 0)
 			{
 				char aBuf[128];
 				str_format(aBuf, sizeof(aBuf), "'%s' changed name to '%s'", aOldName, Server()->ClientName(ClientID));
 				SendChat(-1, CHAT_ALL, -1, aBuf);
+				
+				Server()->SetClientName(ClientID, pMsg->m_pName);
 			}
 
 			if(str_comp(Server()->ClientClan(ClientID), pMsg->m_pClan))

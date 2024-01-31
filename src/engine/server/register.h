@@ -101,7 +101,7 @@ public:
 	virtual void OnShutdown() = 0;
 };
 
-IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, unsigned SevenSecurityToken);
+IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
 
 #endif
 

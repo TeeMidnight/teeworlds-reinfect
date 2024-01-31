@@ -1916,12 +1916,6 @@ int CServer::Run()
 		BindAddr.port = Config()->m_SvPort;
 	}
 
-#ifdef DDNET_MASTER
-	m_DDNetRegister = Config()->m_SvRegisterDDNet;
-	if(m_DDNetRegister)
-		m_pRegisterDDNet = CreateRegister(Config(), m_pConsole, Kernel()->RequestInterface<IEngine>(), Config()->m_SvPort, m_NetServer.GetGlobalToken());
-#endif
-
 	if(!m_NetServer.Open(BindAddr, Config(), Console(), Kernel()->RequestInterface<IEngine>(), &m_ServerBan,
 		Config()->m_SvMaxClients, Config()->m_SvMaxClientsPerIP, NewClientCallback, DelClientCallback, this))
 	{
@@ -1929,6 +1923,12 @@ int CServer::Run()
 		Free();
 		return -1;
 	}
+
+#ifdef DDNET_MASTER
+	m_DDNetRegister = Config()->m_SvRegisterDDNet;
+	if(m_DDNetRegister)
+		m_pRegisterDDNet = CreateRegister(Config(), m_pConsole, Kernel()->RequestInterface<IEngine>(), Config()->m_SvPort, m_NetServer.NetType(), m_NetServer.GetGlobalToken());
+#endif
 
 	m_Econ.Init(Config(), Console(), &m_ServerBan);
 

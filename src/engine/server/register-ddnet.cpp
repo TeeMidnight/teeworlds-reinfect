@@ -169,8 +169,9 @@ private:
 	bool m_GotServerInfo = false;
 	char m_aServerInfo[16384];
 
+	int m_NetType; // TSG
 public:
-	CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, unsigned SevenSecurityToken);
+	CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
 	void Update() override;
 	void OnConfigChange() override;
 	bool OnPacket(const CNetChunk *pPacket) override;
@@ -511,11 +512,12 @@ void CRegisterDDNet::CProtocol::CJob::Run()
 	return;
 }
 
-CRegisterDDNet::CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, unsigned SevenSecurityToken) :
+CRegisterDDNet::CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken) :
 	m_pConfig(pConfig),
 	m_pConsole(pConsole),
 	m_pEngine(pEngine),
 	m_ServerPort(ServerPort),
+	m_NetType(Nettype),
 	m_aProtocols{
 		CProtocol(this, PROTOCOL_TW6_IPV6),
 		CProtocol(this, PROTOCOL_TW6_IPV4),
@@ -575,7 +577,19 @@ void CRegisterDDNet::OnConfigChange()
 	{
 		for(auto &Enabled : m_aProtocolEnabled)
 		{
-			Enabled = true;
+			Enabled = false;
+		}
+		
+		if(m_NetType&NETTYPE_IPV4)
+		{
+			m_aProtocolEnabled[PROTOCOL_TW6_IPV4] = true;
+			m_aProtocolEnabled[PROTOCOL_TW7_IPV4] = true;
+		}
+
+		if(m_NetType&NETTYPE_IPV6)
+		{
+			m_aProtocolEnabled[PROTOCOL_TW6_IPV6] = true;
+			m_aProtocolEnabled[PROTOCOL_TW7_IPV6] = true;
 		}
 	}
 	else
@@ -736,9 +750,9 @@ void CRegisterDDNet::OnShutdown()
 	}
 }
 
-IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, unsigned SevenSecurityToken)
+IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken)
 {
-	return new CRegisterDDNet(pConfig, pConsole, pEngine, ServerPort, SevenSecurityToken);
+	return new CRegisterDDNet(pConfig, pConsole, pEngine, ServerPort, Nettype, SevenSecurityToken);
 }
 
 #endif

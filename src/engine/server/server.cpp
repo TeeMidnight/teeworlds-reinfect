@@ -1594,7 +1594,7 @@ void CServer::UpdateRegisterServerInfo()
 		"\"sha256\":\"%s\","
 		"\"size\":%d"
 		"},"
-		"\"version\":\"%s\","
+		"\"version\":\"%s->0.6\","
 		"\"client_score_kind\":\"score\","
 		"\"clients\":[",
 		MaxClients,
@@ -1965,7 +1965,8 @@ int CServer::Run()
 		m_GameStartTime = time_get();
 
 #ifdef DDNET_MASTER
-		UpdateRegisterServerInfo();
+		if(m_pRegisterDDNet)
+			UpdateRegisterServerInfo();
 #endif
 		while(m_RunServer)
 		{

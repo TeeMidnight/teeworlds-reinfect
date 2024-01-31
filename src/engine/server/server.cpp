@@ -1594,7 +1594,7 @@ void CServer::UpdateRegisterServerInfo()
 		"\"sha256\":\"%s\","
 		"\"size\":%d"
 		"},"
-		"\"version\":\"%s->0.6\","
+		"\"version\":\"%s→0.6\","
 		"\"client_score_kind\":\"score\","
 		"\"clients\":[",
 		MaxClients,

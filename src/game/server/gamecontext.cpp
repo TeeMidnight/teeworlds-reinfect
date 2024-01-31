@@ -2129,7 +2129,7 @@ void CGameContext::OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID)
 		",\"skin\":{"
 		"%s"
 		"},"
-		"\"afk\": false,"
+		"\"afk\":false,"
 		"\"team\":%d",
 		aJsonSkin,
 		m_apPlayers[ID]->GetTeam());

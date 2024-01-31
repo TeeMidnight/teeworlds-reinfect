@@ -1404,6 +1404,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 					Msg.AddString(pCurrent->m_aDescription, VOTE_DESC_LENGTH);
 					pCurrent = pCurrent->m_pNext;
 				}
+				if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+					for(int i = NumOptions; i < MaxOptions; i ++)
+						Msg.AddString("", VOTE_DESC_LENGTH);
 				Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 			}
 

@@ -30,6 +30,7 @@ MACRO_CONFIG_INT(SvHighBandwidth, sv_high_bandwidth, 0, 0, 1, CFGFLAG_SAVE|CFGFL
 MACRO_CONFIG_INT(SvRegister, sv_register, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_SERVER, "Register server with master server for public listing")
 #ifdef DDNET_MASTER
 MACRO_CONFIG_INT(SvRegisterDDNet, sv_register_ddnet, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_SERVER, "Register ddnet master server for public listing")
+MACRO_CONFIG_STR(SvRegisterDDNetType, sv_register_ddnet_type, 4, "all", CFGFLAG_SAVE|CFGFLAG_SERVER, "Register ddnet master server for public listing net type (ipv6, ipv4, all)")
 MACRO_CONFIG_STR(SvRegisterExtra, sv_register_extra, 256, "", CFGFLAG_SERVER, "Extra headers to send to the register endpoint, comma separated 'Header: Value' pairs")
 #endif
 MACRO_CONFIG_STR(SvRconPassword, sv_rcon_password, 32, "", CFGFLAG_SAVE|CFGFLAG_SERVER, "Remote console password (full access)")

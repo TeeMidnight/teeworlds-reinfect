@@ -766,10 +766,6 @@ void CGameContext::OnClientConnected(int ClientID, bool Dummy, bool AsSpec)
 
 	// send settings
 	SendSettings(ClientID);
-
-#ifdef DDNET_MASTER
-	Server()->ExpireServerInfo();
-#endif
 }
 
 void CGameContext::OnClientTeamChange(int ClientID)

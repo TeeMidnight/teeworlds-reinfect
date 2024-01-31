@@ -536,6 +536,7 @@ CRegisterDDNet::CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pE
 	str_format(m_aConnlessTokenHex, sizeof(m_aConnlessTokenHex), "%08x", bytes_be_to_uint(aTokenBytes));
 
 	m_pConsole->Chain("sv_register", ConchainOnConfigChange, this);
+	m_pConsole->Chain("sv_register_ddnettype", ConchainOnConfigChange, this);
 	m_pConsole->Chain("sv_register_extra", ConchainOnConfigChange, this);
 	m_pConsole->Chain("sv_register_url", ConchainOnConfigChange, this);
 }
@@ -579,14 +580,14 @@ void CRegisterDDNet::OnConfigChange()
 		{
 			Enabled = false;
 		}
-		
-		if(m_NetType&NETTYPE_IPV4)
+
+		if(m_NetType&NETTYPE_IPV4 && (str_comp(m_pConfig->m_SvRegisterDDNetType, "all") == 0 || str_comp(m_pConfig->m_SvRegisterDDNetType, "ipv4") == 0))
 		{
 			m_aProtocolEnabled[PROTOCOL_TW6_IPV4] = true;
 			m_aProtocolEnabled[PROTOCOL_TW7_IPV4] = true;
 		}
 
-		if(m_NetType&NETTYPE_IPV6)
+		if(m_NetType&NETTYPE_IPV6  && (str_comp(m_pConfig->m_SvRegisterDDNetType, "all") == 0 || str_comp(m_pConfig->m_SvRegisterDDNetType, "ipv6") == 0))
 		{
 			m_aProtocolEnabled[PROTOCOL_TW6_IPV6] = true;
 			m_aProtocolEnabled[PROTOCOL_TW7_IPV6] = true;

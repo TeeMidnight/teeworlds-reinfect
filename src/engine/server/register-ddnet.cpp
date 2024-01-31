@@ -476,10 +476,6 @@ void CRegisterDDNet::CProtocol::CJob::Run()
 	}
 	{
 		CLockScope ls(m_pShared->m_Lock);
-		if(Status != STATUS_OK || Status != m_pShared->m_LatestResponseStatus)
-		{
-			dbg_msg(ProtocolToSystem(m_Protocol), "status: %s", (const char *)StatusString);
-		}
 		if(Status == m_pShared->m_LatestResponseStatus && Status == STATUS_NEEDCHALLENGE)
 		{
 			dbg_msg(ProtocolToSystem(m_Protocol), "ERROR: the master server reports that clients can not connect to this server.");
@@ -661,7 +657,8 @@ bool CRegisterDDNet::OnPacket(const CNetChunk *pPacket)
 			return true;
 		}
 
-		dbg_msg("register", "got challenge token, protocol='%s' token='%s'", pProtocol, pToken);
+		if(m_pConfig->m_Debug)
+			dbg_msg("register", "got challenge token, protocol='%s' token='%s'", pProtocol, pToken);
 		int Protocol;
 		if(ProtocolFromString(&Protocol, pProtocol))
 		{
@@ -676,7 +673,9 @@ bool CRegisterDDNet::OnPacket(const CNetChunk *pPacket)
 
 void CRegisterDDNet::OnNewInfo(const char *pInfo)
 {
-	dbg_msg("register", "info: %s", pInfo);
+	if(m_pConfig->m_Debug)
+		dbg_msg("register", "info: %s", pInfo);
+	
 	if(m_GotServerInfo && str_comp(m_aServerInfo, pInfo) == 0)
 	{
 		return;

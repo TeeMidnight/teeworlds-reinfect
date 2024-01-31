@@ -169,7 +169,7 @@ private:
 	bool m_GotServerInfo = false;
 	char m_aServerInfo[16384];
 
-	int m_NetType; // TSG
+	int m_NetType = NETTYPE_ALL; // TSG
 public:
 	CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
 	void Update() override;
@@ -536,7 +536,7 @@ CRegisterDDNet::CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pE
 	str_format(m_aConnlessTokenHex, sizeof(m_aConnlessTokenHex), "%08x", bytes_be_to_uint(aTokenBytes));
 
 	m_pConsole->Chain("sv_register", ConchainOnConfigChange, this);
-	m_pConsole->Chain("sv_register_ddnettype", ConchainOnConfigChange, this);
+	m_pConsole->Chain("sv_register_ddnet_type", ConchainOnConfigChange, this);
 	m_pConsole->Chain("sv_register_extra", ConchainOnConfigChange, this);
 	m_pConsole->Chain("sv_register_url", ConchainOnConfigChange, this);
 }

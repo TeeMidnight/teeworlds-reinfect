@@ -1964,6 +1964,9 @@ int CServer::Run()
 	{
 		m_GameStartTime = time_get();
 
+#ifdef DDNET_MASTER
+		UpdateRegisterServerInfo();
+#endif
 		while(m_RunServer)
 		{
 			// load new map

@@ -35,6 +35,8 @@ void CLocConstString::Reload()
 
 CLocalizationDatabase::CLocalizationDatabase()
 {
+	for(auto& Heaps : m_apStringsHeap)
+		delete Heaps.second;
 }
 
 void CLocalizationDatabase::Init(CConfig *pConfig)
@@ -47,7 +49,7 @@ void CLocalizationDatabase::AddString(int Code, const char *pKeygStr, const char
 	CString s;
 	s.m_Hash = str_quickhash(pKeygStr);
 	s.m_ContextHash = str_quickhash(pContext);
-	s.m_pReplacement = m_StringsHeap.StoreString(*pNewStr ? pNewStr : pKeygStr);
+	s.m_pReplacement = m_apStringsHeap[Code]->StoreString(*pNewStr ? pNewStr : pKeygStr);
 	m_aStrings[Code].add(s);
 }
 
@@ -81,10 +83,10 @@ bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, ICon
 	// empty string means unload
 	if(pFilename[0] == 0)
 	{
-		m_aStrings.clear();
-		m_StringsHeap.Reset();
 		return true;
 	}
+
+	int Code = GetLanguageCode(pFilename);
 	
 	char aFilename[IO_MAX_PATH_LENGTH];
 	str_format(aFilename, sizeof(aFilename), "./data/languages/%s.json", pFilename);
@@ -102,8 +104,9 @@ bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, ICon
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "loaded '%s'", aFilename);
 	pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "localization", aBuf);
-	m_aStrings[GetLanguageCode(pFilename)] = sorted_array<CString>(); // add a array
-	m_StringsHeap.Reset();
+	m_aStrings.insert(std::make_pair(Code, sorted_array<CString>())); // add a array
+	m_apStringsHeap.insert(std::make_pair(Code, new CHeap()));
+	m_apStringsHeap[Code]->Reset();
 
 	// parse json data
 	json_settings JsonSettings;
@@ -146,7 +149,7 @@ bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, ICon
 					++pValue;
 			}
 			if(Valid)
-				AddString(GetLanguageCode(pFilename), (const char *)rStart[i]["key"], (const char *)rStart[i]["value"], (const char *)rStart[i]["context"]);
+				AddString(Code, (const char *)rStart[i]["key"], (const char *)rStart[i]["value"], (const char *)rStart[i]["context"]);
 		}
 	}
 
@@ -196,11 +199,15 @@ bool CLocalizationDatabase::LoadIndexFile(const char* pFilename, IStorage *pStor
 
 			str_copy(m_LanguagesMap[Code].first, pFile, sizeof(m_LanguagesMap[Code].first));
 			str_copy(m_LanguagesMap[Code].second, pName, sizeof(m_LanguagesMap[Code].second));
-			
-			dbg_msg("yee", "%s %s", pFile, m_pConfig->m_SvDefaultLanguage);
-			if(str_comp_nocase(pFile, m_pConfig->m_SvDefaultLanguage) == 0)
-				Load(pFile, pStorage, pConsole);
 		}
+	}
+
+	if(m_pConfig->m_SvDefaultLanguage[0])
+	{
+		int Code = GetLanguageCode(m_pConfig->m_SvDefaultLanguage);
+		dbg_msg("yee", "%d", Code);
+		if(Code != -1)
+			Load(m_pConfig->m_SvDefaultLanguage, pStorage, pConsole);
 	}
 
 	// clean up
@@ -253,7 +260,16 @@ const char* CLocalizationDatabase::GetLanguageList()
 void CLocalizationDatabase::DoUnload(int Code)
 {
 	if(m_aStrings.count(Code))
+	{
 		m_aStrings[Code].clear();
+		m_aStrings.erase(Code);
+	}
+	if(m_apStringsHeap.count(Code))
+	{
+		m_apStringsHeap[Code]->Reset();
+		delete m_apStringsHeap[Code];
+		m_apStringsHeap.erase(Code);
+	}
 }
 
 CLocalizationDatabase g_Localization;

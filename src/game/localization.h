@@ -28,9 +28,7 @@ class CLocalizationDatabase
 	// char[16] = Language String Code, char[32] = Language Name
 	std::map<int, std::pair<char[16], char[32]>> m_LanguagesMap;
 
-	array<int> m_UnloadLanguages;
-
-	CHeap m_StringsHeap;
+	std::map<int, CHeap*> m_apStringsHeap;
 
 	class CConfig *m_pConfig;
 

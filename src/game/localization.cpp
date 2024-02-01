@@ -205,7 +205,6 @@ bool CLocalizationDatabase::LoadIndexFile(const char* pFilename, IStorage *pStor
 	if(m_pConfig->m_SvDefaultLanguage[0])
 	{
 		int Code = GetLanguageCode(m_pConfig->m_SvDefaultLanguage);
-		dbg_msg("yee", "%d", Code);
 		if(Code != -1)
 			Load(m_pConfig->m_SvDefaultLanguage, pStorage, pConsole);
 	}

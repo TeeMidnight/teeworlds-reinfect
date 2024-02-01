@@ -154,6 +154,7 @@ private:
 	// completely.
 	bool m_GotFirstUpdateCall = false;
 	int m_ServerPort;
+	int m_NetType; // TSG
 	char m_aConnlessTokenHex[16];
 
 	std::shared_ptr<CGlobal> m_pGlobal = std::make_shared<CGlobal>();
@@ -169,7 +170,6 @@ private:
 	bool m_GotServerInfo = false;
 	char m_aServerInfo[16384];
 
-	int m_NetType = NETTYPE_ALL; // TSG
 public:
 	CRegisterDDNet(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
 	void Update() override;
@@ -212,6 +212,7 @@ const char *CRegisterDDNet::ProtocolToScheme(int Protocol)
 	}
 	dbg_assert(false, "invalid protocol");
 	dbg_break();
+	return "";
 }
 
 const char *CRegisterDDNet::ProtocolToString(int Protocol)
@@ -225,6 +226,7 @@ const char *CRegisterDDNet::ProtocolToString(int Protocol)
 	}
 	dbg_assert(false, "invalid protocol");
 	dbg_break();
+	return "";
 }
 
 bool CRegisterDDNet::ProtocolFromString(int *pResult, const char *pString)

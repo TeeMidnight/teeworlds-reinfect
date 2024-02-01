@@ -13,6 +13,7 @@
 #include <generated/protocolglue.h>
 #include <game/collision.h>
 #include <game/gamecore.h>
+#include <game/localization.h>
 #include <game/version.h>
 
 #include "entities/character.h"
@@ -251,6 +252,8 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *p
 		Msg.m_TargetID = To;
 		if(ChatterClientID != -1)
 			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		if(ChatterClientID == -1)
+			Msg.m_Mode = CHAT_ALL;
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, To);
 	}
 }
@@ -809,6 +812,23 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 		if(Config()->m_SvSilentSpectatorMode && m_apPlayers[ClientID]->GetTeam() == TEAM_SPECTATORS)
 			Msg.m_Silent = true;
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, -1);
+	}
+
+	int Language = Server()->GetClientLanguage(ClientID);
+	if(Language != -1 && Language != g_Localization.GetLanguageCode(Config()->m_SvDefaultLanguage))
+	{
+		bool Unload = true;
+		for(int i = 0; i < MAX_CLIENTS; i ++)
+		{
+			if(Server()->GetClientLanguage(ClientID) == Language)
+			{
+				Unload = false;
+				break;
+			}
+		}
+
+		if(Unload)
+			g_Localization.DoUnload(Language);
 	}
 
 	// mark client's projectile has team projectile
@@ -1847,6 +1867,65 @@ void CGameContext::RemoveCommandHook(const CCommandManager::CCommand *pCommand, 
 	pSelf->SendRemoveChatCommand(pCommand, -1);
 }
 
+void CGameContext::ComLanguage(IConsole::IResult *pResult, void *pContext)
+{
+	CCommandManager::SCommandContext *pComContext = (CCommandManager::SCommandContext *)pContext;
+	CGameContext *pSelf = (CGameContext *)pComContext->m_pContext;
+
+	int PlayerCode = pSelf->Server()->GetClientLanguage(pComContext->m_ClientID);
+	if(pResult->NumArguments() != 1)
+	{
+		pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, Localize(PlayerCode, "use /language <Code> change your language"));
+		pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, g_Localization.GetLanguageList());
+		return;
+	}
+
+	int Code = g_Localization.GetLanguageCode(pResult->GetString(0));
+	if(Code == -1)
+	{
+		pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, Localize(PlayerCode, "No such language"));
+		return;
+	}
+
+	if(Code == PlayerCode)
+		return; // you can't change to the same language
+
+	if(!g_Localization.IsLanguageLoaded(Code))
+	{
+		g_Localization.Load(g_Localization.GetLanguageStr(Code), pSelf->Storage(), pSelf->Console());
+	}
+
+	pSelf->Server()->SetClientLanguage(pComContext->m_ClientID, Code);
+	pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, Localize(Code, "Successfully changed language to English"));
+}
+
+void CGameContext::ComWhisper(IConsole::IResult *pResult, void *pContext)
+{
+	CCommandManager::SCommandContext *pComContext = (CCommandManager::SCommandContext *)pContext;
+	CGameContext *pSelf = (CGameContext *)pComContext->m_pContext;
+
+	if(str_comp(pResult->GetString(0), pSelf->Server()->ClientName(pComContext->m_ClientID)) == 0)
+		return; // you can't whisper your self!
+
+	int Target = -1;
+	for(int i = 0; i < MAX_CLIENTS; i ++)
+	{
+		if(pSelf->m_apPlayers[i])
+		{
+			if(str_comp(pResult->GetString(0), pSelf->Server()->ClientName(i)) == 0)
+			{
+				Target = i;
+				break;
+			}
+		}
+	}
+
+	if(Target == -1)
+		return;
+
+	pSelf->SendChat(pComContext->m_ClientID, CHAT_WHISPER, Target, pResult->GetString(1));
+}
+
 void CGameContext::OnInit()
 {
 	// init everything
@@ -1885,6 +1964,12 @@ void CGameContext::OnInit()
 		m_pController = new CGameControllerDM(this);
 
 	m_pController->RegisterChatCommands(CommandManager());
+
+	CommandManager()->AddCommand("w", "Whisper another player", "s[playername] r[text]", ComWhisper, this);
+	CommandManager()->AddCommand("whisper", "Whisper another player", "s[playername] r[text]", ComWhisper, this);
+
+	CommandManager()->AddCommand("lang", "Setting your language", "?s[text]", ComLanguage, this);
+	CommandManager()->AddCommand("language", "Setting your language", "?s[text]", ComLanguage, this);
 
 	// create all entities from the game layer
 	CMapItemLayerTilemap *pTileMap = m_Layers.GameLayer();

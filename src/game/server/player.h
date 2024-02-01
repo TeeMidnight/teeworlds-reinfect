@@ -110,8 +110,6 @@ public:
 	} m_Latency;
 
 private:
-	int m_NumInputs;
-	
 	CCharacter *m_pCharacter;
 	CGameContext *m_pGameServer;
 

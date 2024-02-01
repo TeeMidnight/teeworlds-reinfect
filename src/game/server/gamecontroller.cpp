@@ -1211,35 +1211,6 @@ int IGameController::GetStartTeam()
 	return TEAM_SPECTATORS;
 }
 
-void IGameController::ComWhisper(IConsole::IResult *pResult, void *pContext)
-{
-	CCommandManager::SCommandContext *pComContext = (CCommandManager::SCommandContext *)pContext;
-	IGameController *pSelf = (IGameController *)pComContext->m_pContext;
-
-	if(str_comp(pResult->GetString(0), pSelf->Server()->ClientName(pComContext->m_ClientID)) == 0)
-		return; // you can't whisper your self!
-
-	int Target = -1;
-	for(int i = 0; i < MAX_CLIENTS; i ++)
-	{
-		if(pSelf->GameServer()->m_apPlayers[i])
-		{
-			if(str_comp(pResult->GetString(0), pSelf->Server()->ClientName(i)) == 0)
-			{
-				Target = i;
-				break;
-			}
-		}
-	}
-
-	if(Target == -1)
-		return;
-
-	pSelf->GameServer()->SendChat(pComContext->m_ClientID, CHAT_WHISPER, Target, pResult->GetString(1));
-}
-
 void IGameController::RegisterChatCommands(CCommandManager *pManager)
 {
-	pManager->AddCommand("w", "Whisper another player", "s[playername] r[text]", ComWhisper, this);
-	pManager->AddCommand("whisper", "Whisper another player", "s[playername] r[text]", ComWhisper, this);
 }

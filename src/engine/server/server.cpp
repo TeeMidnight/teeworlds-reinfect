@@ -33,6 +33,8 @@
 
 #include <mastersrv/mastersrv.h>
 
+#include <game/localization.h>
+
 #include "register.h"
 #include "server.h"
 
@@ -362,6 +364,14 @@ void CServer::SetClientScore(int ClientID, int Score)
 	m_aClients[ClientID].m_Score = Score;
 }
 
+void CServer::SetClientLanguage(int ClientID, int Language)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State < CClient::STATE_READY)
+		return;
+	
+	m_aClients[ClientID].m_LanguageCode = Language;
+}
+
 void CServer::Kick(int ClientID, const char *pReason)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State == CClient::STATE_EMPTY)
@@ -398,6 +408,7 @@ int CServer::Init()
 		m_aClients[i].m_Country = -1;
 		m_aClients[i].m_Snapshots.Init();
 		m_aClients[i].m_Protocol = NETPROTOCOL_UNKNOWN;
+		m_aClients[i].m_LanguageCode = -1;
 	}
 
 	m_CurrentGameTick = 0;
@@ -445,6 +456,13 @@ int CServer::GetClientVersion(int ClientID) const
 	if(ClientID >= 0 && ClientID < MAX_CLIENTS && m_aClients[ClientID].m_State == CClient::STATE_INGAME)
 		return m_aClients[ClientID].m_Version;
 	return 0;
+}
+
+int CServer::GetClientLanguage(int ClientID) const
+{
+	if(ClientID >= 0 && ClientID < MAX_CLIENTS && m_aClients[ClientID].m_State == CClient::STATE_INGAME)
+		return m_aClients[ClientID].m_LanguageCode;
+	return -1;
 }
 
 const char *CServer::ClientName(int ClientID) const
@@ -736,6 +754,7 @@ int CServer::NewClientCallback(int ClientID, void *pUser, int Protocol)
 	pThis->m_aClients[ClientID].m_NoRconNote = false;
 	pThis->m_aClients[ClientID].m_Quitting = false;
 	pThis->m_aClients[ClientID].m_Latency = 0;
+	pThis->m_aClients[ClientID].m_LanguageCode = g_Localization.GetLanguageCode(pThis->Config()->m_SvDefaultLanguage);
 	pThis->m_aClients[ClientID].Reset();
 
 	pThis->m_aClients[ClientID].m_Protocol = Protocol;
@@ -771,6 +790,7 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientID].m_NoRconNote = false;
 	pThis->m_aClients[ClientID].m_Quitting = false;
 	pThis->m_aClients[ClientID].m_Protocol = NETPROTOCOL_UNKNOWN;
+	pThis->m_aClients[ClientID].m_LanguageCode = -1;
 	pThis->m_aClients[ClientID].m_Snapshots.PurgeAll();
 	return 0;
 }
@@ -2508,6 +2528,9 @@ int main(int argc, const char **argv)
 	INetConverter *pNetConverter = CreateNetConverter(pServer, pConfigManager->Values());
 
 	pServer->InitRegister(&pServer->m_NetServer, pEngineMasterServer, pConfigManager->Values(), pConsole);
+	// 826 = English
+	g_Localization.Init(pConfigManager->Values());
+	g_Localization.LoadIndexFile("./data/languages/index.json", pStorage, pConsole);
 
 	{
 		bool RegisterFail = false;

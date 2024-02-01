@@ -1,0 +1,160 @@
+{
+"translated strings": [
+	{
+		"key": "'%s' called for vote to kick '%s' (%s)",
+		"value": "'%s' 發起投票想要踢除 '%s' (%s)"
+	},
+	{
+		"key": "'%s' called for vote to move '%s' to spectators (%s)",
+		"value": "'%s' 發起投票想要將 '%s' 移至旁觀位 (%s)"
+	},
+	{
+		"key": "'%s' called vote to change server option '%s' (%s)",
+		"value": "'%s' 發起投票想要改變伺服器設定 '%s' (%s)"
+	},
+	{
+		"key": "'%s' entered and joined the blue team",
+		"value": "'%s' 已連線並加入了藍隊"
+	},
+	{
+		"key": "'%s' entered and joined the game",
+		"value": "'%s' 已連線並加入了遊戲"
+	},
+	{
+		"key": "'%s' entered and joined the red team",
+		"value": "'%s' 已連線並加入了紅隊"
+	},
+	{
+		"key": "'%s' entered and joined the spectators",
+		"value": "'%s' 已連線並加入了旁觀位"
+	},
+	{
+		"key": "'%s' has left the game",
+		"value": "'%s' 離開了遊戲"
+	},
+	{
+		"key": "'%s' has left the game (%s)",
+		"value": "'%s' 離開了遊戲 (%s)"
+	},
+	{
+		"key": "'%s' initiated a pause",
+		"value": "'%s' 暫停了遊戲"
+	},
+	{
+		"key": "'%s' joined the blue team",
+		"value": "'%s' 加入了藍隊"
+	},
+	{
+		"key": "'%s' joined the game",
+		"value": "'%s' 加入了遊戲"
+	},
+	{
+		"key": "'%s' joined the red team",
+		"value": "'%s' 加入了紅隊"
+	},
+	{
+		"key": "'%s' joined the spectators",
+		"value": "'%s' 加入了旁觀位"
+	},
+	{
+		"key": "Admin forced server option '%s' (%s)",
+		"value": "管理員強制修改了伺服器設定 '%s' (%s)"
+	},
+	{
+		"key": "Admin forced vote no",
+		"value": "管理員強制否決了投票"
+	},
+	{
+		"key": "Admin forced vote yes",
+		"value": "管理員強制通過了投票"
+	},
+	{
+		"key": "Admin moved '%s' to spectator (%s)",
+		"value": "管理員將 '%s' 移至了旁觀位 (%s)"
+	},
+	{
+		"key": "All players were moved to the blue team",
+		"value": "所有玩家被移入藍隊"
+	},
+	{
+		"key": "All players were moved to the game",
+		"value": "所有玩家被移入遊戲"
+	},
+	{
+		"key": "All players were moved to the red team",
+		"value": "所有玩家被移入紅隊"
+	},
+	{
+		"key": "All players were moved to the spectators",
+		"value": "所有玩家被移入旁觀位"
+	},
+	{
+		"key": "Invalid spectator id used",
+		"value": "無效的旁觀ID"
+	},
+	{
+		"key": "No such language",
+		"value": "沒有這個語言"
+	},
+	{
+		"key": "Successfully changed language to English",
+		"value": "成功切換到繁體中文"
+	},
+	{
+		"key": "Teams have been balanced",
+		"value": "雙方隊伍已被平衡分配"
+	},
+	{
+		"key": "Teams were shuffled",
+		"value": "雙方隊伍已被隨機重組"
+	},
+	{
+		"key": "Teams were swapped",
+		"value": "雙方隊伍已被交換"
+	},
+	{
+		"key": "The blue flag was captured by '%s'",
+		"value": "藍隊旗幟被 '%s' 奪取"
+	},
+	{
+		"key": "The blue flag was captured by '%s' (%.2f seconds)",
+		"value": "藍隊旗幟被 '%s' 奪取（%.2f秒）"
+	},
+	{
+		"key": "The red flag was captured by '%s'",
+		"value": "紅隊旗幟被 '%s' 奪取"
+	},
+	{
+		"key": "The red flag was captured by '%s' (%.2f seconds)",
+		"value": "紅隊旗幟被 '%s' 奪取（%.2f秒）"
+	},
+	{
+		"key": "Vote aborted",
+		"value": "投票已中止"
+	},
+	{
+		"key": "Vote failed",
+		"value": "投票已否決"
+	},
+	{
+		"key": "Vote passed",
+		"value": "投票已通過"
+	},
+	{
+		"key": "Whisper",
+		"value": "私訊"
+	},
+	{
+		"key": "You were moved to the blue team due to team balancing",
+		"value": "為了隊伍平衡，你被移入藍隊"
+	},
+	{
+		"key": "You were moved to the red team due to team balancing",
+		"value": "為了隊伍平衡，你被移入紅隊"
+	},
+	{
+		"key": "use /language <Code> change your language",
+		"value": "使用/language <語言> 切換你的語言"
+	}
+]
+}

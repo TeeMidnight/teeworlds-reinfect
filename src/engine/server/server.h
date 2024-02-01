@@ -161,6 +161,8 @@ public:
 #endif
 
 		int m_Protocol;
+
+		int m_LanguageCode;
 	};
 
 	CClient m_aClients[MAX_CLIENTS];
@@ -253,6 +255,7 @@ public:
 	virtual void SetClientClan(int ClientID, char const *pClan);
 	virtual void SetClientCountry(int ClientID, int Country);
 	virtual void SetClientScore(int ClientID, int Score);
+	virtual void SetClientLanguage(int ClientID, int Language);
 
 	void Kick(int ClientID, const char *pReason);
 
@@ -271,6 +274,7 @@ public:
 	int GetClientInfo(int ClientID, CClientInfo *pInfo) const;
 	void GetClientAddr(int ClientID, char *pAddrStr, int Size) const;
 	int GetClientVersion(int ClientID) const;
+	int GetClientLanguage(int ClientID) const;
 	const char *ClientName(int ClientID) const;
 	const char *ClientClan(int ClientID) const;
 	int ClientCountry(int ClientID) const;

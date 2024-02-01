@@ -4,6 +4,8 @@
 #include <engine/shared/config.h>
 #include <engine/shared/protocol6.h>
 
+#include <game/localization.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/gamecontext.h>
@@ -303,6 +305,8 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
     if(Unpacker.Error())
         return -1;
 
+    int TempCode = Server()->GetClientLanguage(ToClientID);
+
     switch (pMsg->Type())
     {
         case NETMSGTYPE_SV_MOTD:
@@ -335,7 +339,7 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
             if(ChatterClientID != -1 && Mode == CHAT_WHISPER)
             {
                 char aChat[512];
-                str_format(aChat, sizeof(aChat), "(%s)%s: %s", "Whisper", TargetID == ToClientID ? "<" : ">", pMessage);
+                str_format(aChat, sizeof(aChat), "(%s)%s: %s", Localize(TempCode, "Whisper"), TargetID == ToClientID ? "<" : ">", pMessage);
 
                 Msg6.AddInt(Team); // Team
                 Msg6.AddInt(ChatterClientID);
@@ -366,10 +370,10 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
 	        char aBuf[128];
             switch(GetStrTeam(Team, m_GameFlags&GAMEFLAG_TEAMS))
             {
-                case STR_TEAM_GAME: str_format(aBuf, sizeof(aBuf), "'%s' joined the game", Server()->ClientName(ClientID)); break;
-                case STR_TEAM_RED: str_format(aBuf, sizeof(aBuf), "'%s' joined the red team", Server()->ClientName(ClientID)); break;
-                case STR_TEAM_BLUE: str_format(aBuf, sizeof(aBuf), "'%s' joined the blue team", Server()->ClientName(ClientID)); break;
-                case STR_TEAM_SPECTATORS: str_format(aBuf, sizeof(aBuf), "'%s' joined the spectators", Server()->ClientName(ClientID)); break;
+                case STR_TEAM_GAME: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' joined the game"), Server()->ClientName(ClientID)); break;
+                case STR_TEAM_RED: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' joined the red team"), Server()->ClientName(ClientID)); break;
+                case STR_TEAM_BLUE: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' joined the blue team"), Server()->ClientName(ClientID)); break;
+                case STR_TEAM_SPECTATORS: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' joined the spectators"), Server()->ClientName(ClientID)); break;
             }
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
@@ -412,17 +416,17 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
                     {
                         case VOTE_START_OP:
                             {
-                                str_format(aBuf, sizeof(aBuf), "'%s' called vote to change server option '%s' (%s)", Server()->ClientName(ClientID), pDesc, pReason);
+                                str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' called vote to change server option '%s' (%s)"), Server()->ClientName(ClientID), pDesc, pReason);
                                 break;
                             }
                         case VOTE_START_KICK:
                             {
-                                str_format(aBuf, sizeof(aBuf), "'%s' called for vote to kick '%s' (%s)", Server()->ClientName(ClientID), pDesc, pReason);
+                                str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' called for vote to kick '%s' (%s)"), Server()->ClientName(ClientID), pDesc, pReason);
                                 break;
                             }
                         case VOTE_START_SPEC:
                             {
-                                str_format(aBuf, sizeof(aBuf), "'%s' called for vote to move '%s' to spectators (%s)", Server()->ClientName(ClientID), pDesc, pReason);
+                                str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' called for vote to move '%s' to spectators (%s)"), Server()->ClientName(ClientID), pDesc, pReason);
                             }
                     }
 
@@ -440,19 +444,19 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
                 switch(Type)
                 {
                     case VOTE_START_OP:
-                        str_format(aBuf, sizeof(aBuf), "Admin forced server option '%s' (%s)", pDesc, pReason);
+                        str_format(aBuf, sizeof(aBuf), Localize(TempCode, "Admin forced server option '%s' (%s)"), pDesc, pReason);
                         break;
                     case VOTE_START_SPEC:
-                        str_format(aBuf, sizeof(aBuf), "Admin moved '%s' to spectator (%s)", pDesc, pReason);
+                        str_format(aBuf, sizeof(aBuf), Localize(TempCode, "Admin moved '%s' to spectator (%s)"), pDesc, pReason);
                         break;
                     case VOTE_END_ABORT:
-                        str_copy(aBuf, "Vote aborted", sizeof(aBuf));
+                        str_copy(aBuf, Localize(TempCode, "Vote aborted"), sizeof(aBuf));
                         break;
                     case VOTE_END_PASS:
-                        str_copy(aBuf, ClientID == -1 ? "Admin forced vote yes" : "Vote passed", sizeof(aBuf));
+                        str_copy(aBuf, ClientID == -1 ? Localize(TempCode, "Admin forced vote yes") : Localize(TempCode, "Vote passed"), sizeof(aBuf));
                         break;
                     case VOTE_END_FAIL:
-                        str_copy(aBuf, ClientID == -1 ? "Admin forced vote no" : "Vote failed", sizeof(aBuf));
+                        str_copy(aBuf, ClientID == -1 ? Localize(TempCode, "Admin forced vote no") : Localize(TempCode, "Vote failed"), sizeof(aBuf));
                         break;
                 }
 
@@ -493,10 +497,10 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
             char aBuf[128];
             switch(GetStrTeam(Team, m_GameFlags&GAMEFLAG_TEAMS))
             {
-                case STR_TEAM_GAME: str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the game", pName); break;
-                case STR_TEAM_RED: str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the red team", pName); break;
-                case STR_TEAM_BLUE: str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the blue team", pName); break;
-                case STR_TEAM_SPECTATORS: str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the spectators", pName); break;
+                case STR_TEAM_GAME: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' entered and joined the game"), pName); break;
+                case STR_TEAM_RED: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' entered and joined the red team"), pName); break;
+                case STR_TEAM_BLUE: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' entered and joined the blue team"), pName); break;
+                case STR_TEAM_SPECTATORS: str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' entered and joined the spectators"), pName); break;
             }
 
             protocol6::CNetMsg_Sv_Chat Chat;
@@ -517,9 +521,9 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
 
             char aBuf[128];
             if(pReason[0])
-                str_format(aBuf, sizeof(aBuf), "'%s' has left the game (%s)", Server()->ClientName(ClientID), pReason);
+                str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' has left the game (%s)"), Server()->ClientName(ClientID), pReason);
             else
-                str_format(aBuf, sizeof(aBuf), "'%s' has left the game", Server()->ClientName(ClientID));
+                str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' has left the game"), Server()->ClientName(ClientID));
             
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
@@ -541,6 +545,8 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
     CUnpacker Unpacker;
     Unpacker.Reset(pMsg->Data(), pMsg->Size());
 
+    int TempCode = Server()->GetClientLanguage(ToClientID);
+
     int GameMsgID = Unpacker.GetInt();
     switch (GameMsgID)
     {
@@ -548,7 +554,7 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
         {
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
-            Chat.m_pMessage = "Teams were swapped";
+            Chat.m_pMessage = Localize(TempCode, "Teams were swapped");
             Chat.m_Team = 0;
             
             return Server()->SendPackMsg(&Chat, Flags, ToClientID, false);
@@ -557,7 +563,7 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
         {
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
-            Chat.m_pMessage = "Invalid spectator id used";
+            Chat.m_pMessage = Localize(TempCode, "Invalid spectator id used");
             Chat.m_Team = 0;
             
             return Server()->SendPackMsg(&Chat, Flags, ToClientID, false);
@@ -566,7 +572,7 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
         {
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
-            Chat.m_pMessage = "Teams were shuffled";
+            Chat.m_pMessage = Localize(TempCode, "Teams were shuffled");
             Chat.m_Team = 0;
             
             return Server()->SendPackMsg(&Chat, Flags, ToClientID, false);
@@ -575,7 +581,7 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
         {
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
-            Chat.m_pMessage = "Teams have been balanced";
+            Chat.m_pMessage = Localize(TempCode, "Teams have been balanced");
             Chat.m_Team = 0;
             
             return Server()->SendPackMsg(&Chat, Flags, ToClientID, false);
@@ -599,10 +605,10 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
             const char *pMsg = "";
             switch(GetStrTeam(Unpacker.GetInt(), m_GameFlags&GAMEFLAG_TEAMS))
             {
-                case STR_TEAM_GAME: pMsg = "All players were moved to the game"; break;
-                case STR_TEAM_RED: pMsg = "All players were moved to the red team"; break;
-                case STR_TEAM_BLUE: pMsg = "All players were moved to the blue team"; break;
-                case STR_TEAM_SPECTATORS: pMsg = "All players were moved to the spectators"; break;
+                case STR_TEAM_GAME: pMsg = Localize(TempCode, "All players were moved to the game"); break;
+                case STR_TEAM_RED: pMsg = Localize(TempCode, "All players were moved to the red team"); break;
+                case STR_TEAM_BLUE: pMsg = Localize(TempCode, "All players were moved to the blue team"); break;
+                case STR_TEAM_SPECTATORS: pMsg = Localize(TempCode, "All players were moved to the spectators"); break;
             }
 
             protocol6::CNetMsg_Sv_Chat Chat;
@@ -617,8 +623,8 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
             const char *pMsg = "";
             switch(GetStrTeam(Unpacker.GetInt(), m_GameFlags&GAMEFLAG_TEAMS))
             {
-                case STR_TEAM_RED: pMsg = "You were moved to the red team due to team balancing"; break;
-                case STR_TEAM_BLUE: pMsg = "You were moved to the blue team due to team balancing"; break;
+                case STR_TEAM_RED: pMsg = Localize(TempCode, "You were moved to the red team due to team balancing"); break;
+                case STR_TEAM_BLUE: pMsg = Localize(TempCode, "You were moved to the blue team due to team balancing"); break;
             }
 
             protocol6::CNetMsg_Sv_Broadcast Broadcast;
@@ -645,7 +651,7 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
         {
             int ClientID = clamp(Unpacker.GetInt(), 0, MAX_CLIENTS - 1);
             char aBuf[128];
-            str_format(aBuf, sizeof(aBuf), "'%s' initiated a pause", Server()->ClientName(ClientID));
+            str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' initiated a pause"), Server()->ClientName(ClientID));
 
             protocol6::CNetMsg_Sv_Chat Chat;
             Chat.m_ClientID = -1;
@@ -665,22 +671,22 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
             {
                 if(Team)
                 {
-                    str_format(aBuf, sizeof(aBuf), "The blue flag was captured by '%s' (%.2f seconds)", Server()->ClientName(ClientID), Time);
+                    str_format(aBuf, sizeof(aBuf), Localize(TempCode, "The blue flag was captured by '%s' (%.2f seconds)"), Server()->ClientName(ClientID), Time);
                 }
                 else
                 {
-                    str_format(aBuf, sizeof(aBuf), "The red flag was captured by '%s' (%.2f seconds)", Server()->ClientName(ClientID), Time);
+                    str_format(aBuf, sizeof(aBuf), Localize(TempCode, "The red flag was captured by '%s' (%.2f seconds)"), Server()->ClientName(ClientID), Time);
                 }
             }
             else
             {
                 if(Team)
                 {
-                    str_format(aBuf, sizeof(aBuf), "The blue flag was captured by '%s'", Server()->ClientName(ClientID));
+                    str_format(aBuf, sizeof(aBuf), Localize(TempCode, "The blue flag was captured by '%s'"), Server()->ClientName(ClientID));
                 }
                 else
                 {
-                    str_format(aBuf, sizeof(aBuf), "The red flag was captured by '%s'", Server()->ClientName(ClientID));
+                    str_format(aBuf, sizeof(aBuf), Localize(TempCode, "The red flag was captured by '%s'"), Server()->ClientName(ClientID));
                 }
             }
 

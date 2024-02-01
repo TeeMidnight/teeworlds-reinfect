@@ -36,6 +36,8 @@ public:
 	virtual void GetClientAddr(int ClientID, char *pAddrStr, int Size) const = 0;
 	virtual int GetClientVersion(int ClientID) const = 0;
 
+	virtual int GetClientLanguage(int ClientID) const = 0;
+
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID) = 0;
 
 	template<class T>
@@ -51,6 +53,7 @@ public:
 	virtual void SetClientClan(int ClientID, char const *pClan) = 0;
 	virtual void SetClientCountry(int ClientID, int Country) = 0;
 	virtual void SetClientScore(int ClientID, int Score) = 0;
+	virtual void SetClientLanguage(int ClientID, int Language) = 0;
 
 	virtual int SnapNewID() = 0;
 	virtual void SnapFreeID(int ID) = 0;

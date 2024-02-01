@@ -1,6 +1,8 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
+#include <game/localization.h>
+
 #include "entities/character.h"
 #include "entities/flag.h"
 #include "gamecontext.h"
@@ -34,7 +36,6 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, bool Dummy, bool AsSpe
 	m_RespawnDisabled = GameServer()->m_pController->GetStartRespawnState();
 	m_DeadSpecMode = false;
 	m_Spawning = false;
-	m_NumInputs = 0;
 	mem_zero(&m_Latency, sizeof(m_Latency));
 }
 
@@ -231,16 +232,8 @@ void CPlayer::OnPredictedInput(CNetObj_PlayerInput *NewInput)
 	if((m_PlayerFlags&PLAYERFLAG_CHATTING) && (NewInput->m_PlayerFlags&PLAYERFLAG_CHATTING))
 		return;
 
-	m_NumInputs++;
-
 	if(m_pCharacter)
 		m_pCharacter->OnPredictedInput(NewInput);
-
-	if(m_NumInputs == 200 && Server()->ClientProtocol(m_ClientID) == NETPROTOCOL_SIX)
-	{
-		GameServer()->SendChat(-1, CHAT_WHISPER, m_ClientID, "This server uses an experimental translation to support 0.6 (based on 0.7).");
-		GameServer()->SendChat(-1, CHAT_WHISPER, m_ClientID, "Please report bugs on github.com/Bamcane/TeeGlue");
-	}
 }
 
 void CPlayer::OnDirectInput(CNetObj_PlayerInput *NewInput)

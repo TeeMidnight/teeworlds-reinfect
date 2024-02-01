@@ -234,7 +234,6 @@ public:
 	int MatchCount() const { return m_MatchCount; }
 	int TeamScore(int Team) const { return m_aTeamscore[Team]; }
 
-	static void ComWhisper(IConsole::IResult *pResult, void *pContext);
 	virtual void RegisterChatCommands(CCommandManager *pManager);
 };
 

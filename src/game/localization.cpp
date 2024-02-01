@@ -196,7 +196,8 @@ bool CLocalizationDatabase::LoadIndexFile(const char* pFilename, IStorage *pStor
 
 			str_copy(m_LanguagesMap[Code].first, pFile, sizeof(m_LanguagesMap[Code].first));
 			str_copy(m_LanguagesMap[Code].second, pName, sizeof(m_LanguagesMap[Code].second));
-
+			
+			dbg_msg("yee", "%s %s", pFile, m_pConfig->m_SvDefaultLanguage);
 			if(str_comp_nocase(pFile, m_pConfig->m_SvDefaultLanguage) == 0)
 				Load(pFile, pStorage, pConsole);
 		}

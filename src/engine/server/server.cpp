@@ -2528,9 +2528,6 @@ int main(int argc, const char **argv)
 	INetConverter *pNetConverter = CreateNetConverter(pServer, pConfigManager->Values());
 
 	pServer->InitRegister(&pServer->m_NetServer, pEngineMasterServer, pConfigManager->Values(), pConsole);
-	// 826 = English
-	g_Localization.Init(pConfigManager->Values());
-	g_Localization.LoadIndexFile("./data/languages/index.json", pStorage, pConsole);
 
 	{
 		bool RegisterFail = false;
@@ -2571,6 +2568,10 @@ int main(int argc, const char **argv)
 		if(argc > 1)
 			pConsole->ParseArguments(argc-1, &argv[1]);
 	}
+	
+	// 826 = English
+	g_Localization.Init(pConfigManager->Values());
+	g_Localization.LoadIndexFile("./data/languages/index.json", pStorage, pConsole);
 
 	// restore empty config strings to their defaults
 	pConfigManager->RestoreStrings();

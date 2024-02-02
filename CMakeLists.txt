@@ -520,6 +520,8 @@ set_glob(ENGINE_SHARED GLOB src/engine/shared
   snapshot.cpp
   snapshot.h
   storage.cpp
+  uuid.cpp
+  uuid.h
 )
 
 set(ENGINE_GENERATED_SHARED 

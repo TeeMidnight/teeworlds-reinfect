@@ -10,6 +10,7 @@
 #include <engine/shared/http.h>
 #include <engine/shared/network.h>
 #include <engine/shared/packer.h>
+#include <engine/shared/uuid.h>
 
 #include <mastersrv/mastersrv.h>
 
@@ -19,38 +20,6 @@
 
 #include "register.h"
 
-enum
-{
-	UUID_MAXSTRSIZE = 37, // 12345678-0123-5678-0123-567890123456
-
-	UUID_INVALID = -2,
-	UUID_UNKNOWN = -1,
-};
-
-CUuid RandomUuid()
-{
-	CUuid Result;
-	secure_random_fill(&Result, sizeof(Result));
-
-	// set version 4 (UUID is randomly generated)
-	Result.m_aData[6] &= 0x0f;
-	Result.m_aData[6] |= 0x40;
-
-	// set variant 1 (RFC 4122)
-	Result.m_aData[8] &= 0x3f;
-	Result.m_aData[8] |= 0x80;
-
-	return Result;
-}
-
-void FormatUuid(CUuid Uuid, char *pBuffer, unsigned BufferLength)
-{
-	unsigned char *p = Uuid.m_aData;
-	str_format(pBuffer, BufferLength,
-		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-		p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
-		p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
-}
 
 class CRegisterDDNet : public IRegisterDDNet
 {

@@ -182,7 +182,6 @@ public:
 	virtual void OnSnap(int ClientID);
 	virtual void OnPostSnap();
 
-	void *PreProcessMsg(int *pMsgID, CUnpacker *pUnpacker, int ClientID);
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID);
 
 	virtual void OnClientConnected(int ClientID, bool AsSpec) { OnClientConnected(ClientID, false, AsSpec); }

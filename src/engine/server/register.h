@@ -62,26 +62,6 @@ public:
 	int RegisterProcessPacket(struct CNetChunk *pPacket, TOKEN Token);
 };
 
-struct CUuid
-{
-	unsigned char m_aData[16];
-
-	bool operator==(const CUuid &Other) const
-    {
-        return mem_comp(this, &Other, sizeof(*this)) == 0;
-    }
-
-	bool operator!=(const CUuid &Other) const
-    {
-        return !(*this == Other);
-    }
-
-	bool operator<(const CUuid &Other) const
-    {
-        return mem_comp(this, &Other, sizeof(*this)) < 0;
-    }
-};
-
 #ifdef DDNET_MASTER
 
 class IRegisterDDNet
@@ -101,7 +81,7 @@ public:
 	virtual void OnShutdown() = 0;
 };
 
-IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
+IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, class IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
 
 #endif
 

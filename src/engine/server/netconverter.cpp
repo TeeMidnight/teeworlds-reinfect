@@ -3,6 +3,7 @@
 
 #include <engine/shared/config.h>
 #include <engine/shared/protocol6.h>
+#include <engine/shared/uuid.h>
 
 #include <game/localization.h>
 
@@ -18,7 +19,6 @@
 #include <generated/server_data.h>
 
 #include "netconverter.h"
-
 
 static int PickupTypeTo6(int Pickup)
 {
@@ -96,11 +96,328 @@ static int GetStrTeam(int Team, bool Teamplay)
 	return STR_TEAM_SPECTATORS;
 }
 
+inline void AppendDecimals(char *pBuf, int Size, int Time, int Precision)
+{
+	if(Precision > 0)
+	{
+		char aInvalid[] = ".---";
+		char aMSec[] = {
+			'.',
+			(char)('0' + (Time / 100) % 10),
+			(char)('0' + (Time / 10) % 10),
+			(char)('0' + Time % 10),
+			0
+		};
+		char *pDecimals = Time < 0 ? aInvalid : aMSec;
+		pDecimals[minimum(Precision, 3)+1] = 0;
+		str_append(pBuf, pDecimals, Size);
+	}
+}
+
+void FormatTime(char *pBuf, int Size, int Time, int Precision)
+{
+	if(Time < 0)
+		str_copy(pBuf, "-:--", Size);
+	else
+		str_format(pBuf, Size, "%02d:%02d", Time / (60 * 1000), (Time / 1000) % 60);
+	AppendDecimals(pBuf, Size, Time, Precision);
+}
+
+void FormatTimeDiff(char *pBuf, int Size, int Time, int Precision, bool ForceSign)
+{
+	const char *pPositive = ForceSign ? "+" : "";
+	const char *pSign = Time < 0 ? "-" : pPositive;
+	Time = absolute(Time);
+	str_format(pBuf, Size, "%s%d", pSign, Time / 1000);
+	AppendDecimals(pBuf, Size, Time, Precision);
+}
+
 CNetConverter::CNetConverter(IServer *pServer, class CConfig *pConfig) :
     m_pServer(pServer),
     m_pConfig(pConfig)
 {
     m_GameFlags = 0;
+}
+
+static inline int MsgFromSevenDown(int Msg, bool System)
+{
+	if(System)
+	{
+		if(Msg == NETMSG_INFO)
+			;
+		else if(Msg >= 14 && Msg <= 19)
+			Msg = NETMSG_READY + Msg - 14;
+		else if(Msg >= 22 && Msg <= 23)
+			Msg = NETMSG_PING + Msg - 22;
+		else return -1;
+	}
+
+	return Msg;
+}
+
+bool CNetConverter::DeepConvertClientMsg6(CMsgUnpacker *pItem, int& Type, bool System, int FromClientID)
+{
+    if(System)
+    {
+        Type = MsgFromSevenDown(Type, System);
+        return (Type != -1);
+    }
+
+    if(!GameServer()->m_apPlayers[FromClientID])
+        return false;
+
+    // language
+    int TempCode = Server()->GetClientLanguage(FromClientID);
+
+    CPlayer *pPlayer = GameServer()->m_apPlayers[FromClientID];
+
+    switch (Type)
+    {
+        case protocol6::NETMSGTYPE_CL_SAY:
+        {
+            int Team = pItem->GetInt();
+            const char* pMessage = pItem->GetString();
+
+            if(!pMessage || !pMessage[0])
+                return false;
+
+            if(pMessage[0] == '/')
+            {
+                CMsgPacker Msg7(NETMSGTYPE_CL_COMMAND, false, false);
+                const char *pCommandStr = pMessage;
+
+                char aCommand[16];
+	            str_format(aCommand, sizeof(aCommand), "%.*s", str_span(pCommandStr + 1, " "), pCommandStr + 1);
+
+                Msg7.AddString(aCommand, -1);
+                Msg7.AddString(str_skip_whitespaces_const(str_skip_to_whitespace_const(pCommandStr)), -1);
+
+                *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+                Type = NETMSGTYPE_CL_COMMAND;
+            }else
+            {
+                CMsgPacker Msg7(NETMSGTYPE_CL_SAY, false, false);
+                Msg7.AddInt(Team ? CHAT_TEAM : CHAT_ALL);
+                Msg7.AddInt(-1);
+                Msg7.AddString(pMessage, -1);
+
+                *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+                Type = NETMSGTYPE_CL_SAY;
+            }
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_SETTEAM:
+        {
+            int Team = pItem->GetInt();
+
+            if(GameServer()->m_LockTeams && pPlayer->GetTeam() != TEAM_SPECTATORS)
+            {
+                if(m_aChatTick[FromClientID] + 5 * Server()->TickSpeed() > Server()->Tick())
+                    return false;
+
+                protocol6::CNetMsg_Sv_Chat Chat;
+                Chat.m_ClientID = -1;
+                Chat.m_pMessage = Localize(TempCode, "Teams are locked");
+                Chat.m_Team = 0;
+
+                m_aChatTick[FromClientID] = Server()->Tick();
+
+                Server()->SendPackMsg(&Chat, MSGFLAG_VITAL | MSGFLAG_NORECORD, FromClientID, false);
+                
+                return false;
+            }
+
+            if(pPlayer->m_TeamChangeTick <= Server()->Tick())
+            {
+                if(m_aChatTick[FromClientID] + 5 * Server()->TickSpeed() > Server()->Tick())
+                    return false;
+
+                int TimeLeft = (pPlayer->m_TeamChangeTick - Server()->Tick()) / Server()->TickSpeed() + 1;
+                char aBuf[128];
+                str_format(aBuf, sizeof(aBuf), Localize(TempCode, "Teams are locked. Time to wait before changing team: %02d:%02d"), TimeLeft / 60, TimeLeft % 60);
+                
+                protocol6::CNetMsg_Sv_Chat Chat;
+                Chat.m_ClientID = -1;
+                Chat.m_pMessage = aBuf;
+                Chat.m_Team = 0;
+
+                m_aChatTick[FromClientID] = Server()->Tick();
+
+                Server()->SendPackMsg(&Chat, MSGFLAG_VITAL | MSGFLAG_NORECORD, FromClientID, false);
+                
+                return false;
+            }
+
+            {
+                CMsgPacker Msg7(NETMSGTYPE_CL_SETTEAM, false, false);
+                Msg7.AddInt(Team);
+
+                *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+                Type = NETMSGTYPE_CL_SETTEAM;
+            }
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_SETSPECTATORMODE:
+        {
+            int SpectatorID = pItem->GetInt();
+
+            CMsgPacker Msg7(NETMSGTYPE_CL_SETSPECTATORMODE, false, false);
+            Msg7.AddInt(SpectatorID == -1 ? SPEC_FREEVIEW : SPEC_PLAYER);
+            Msg7.AddInt(SpectatorID);
+
+            *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+            Type = NETMSGTYPE_CL_SETSPECTATORMODE;
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_STARTINFO:
+        {
+            CMsgPacker Msg7(NETMSGTYPE_CL_STARTINFO, false, false);
+            // name
+            Msg7.AddString(pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), -1);
+            // clan
+            Msg7.AddString(pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), -1);
+            // country
+            Msg7.AddInt(pItem->GetInt());
+
+            const char* pSkin = pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES);
+            int UseCustomColor = pItem->GetInt();
+            int ColorBody = pItem->GetInt();
+            int ColorFeet = pItem->GetInt();
+
+            CTeeInfo TeeInfo(pSkin, UseCustomColor, ColorBody, ColorFeet);
+            TeeInfo.FromSix();
+            
+            for(int i = 0; i < NUM_SKINPARTS; i ++)
+			{
+                Msg7.AddString(TeeInfo.m_apSkinPartNames[i], MAX_SKIN_LENGTH);
+			}
+            for(int i = 0; i < NUM_SKINPARTS; i ++)
+			{
+                Msg7.AddInt(TeeInfo.m_aUseCustomColors[i]);
+			}
+            for(int i = 0; i < NUM_SKINPARTS; i ++)
+			{
+                Msg7.AddInt(TeeInfo.m_aSkinPartColors[i]);
+			}
+
+            pPlayer->m_TeeInfos = TeeInfo;
+            
+            *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+            Type = NETMSGTYPE_CL_STARTINFO;
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_CHANGEINFO:
+        {
+            const char* pName = pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES);
+            const char* pClan = pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES);
+            int Country = pItem->GetInt();
+
+            // 0.7 couldn't change these things
+            if(str_comp(pName, Server()->ClientName(FromClientID)) || 
+                str_comp(pClan, Server()->ClientClan(FromClientID)) ||
+                Country != Server()->ClientCountry(FromClientID))
+            {
+                if(m_aChatTick[FromClientID] + 5 * Server()->TickSpeed() > Server()->Tick())
+                    return false;
+
+                protocol6::CNetMsg_Sv_Chat Chat;
+                Chat.m_ClientID = -1;
+                Chat.m_pMessage = Localize(TempCode, "You must reconnect to change identity.");
+                Chat.m_Team = 0;
+
+                m_aChatTick[FromClientID] = Server()->Tick();
+
+                Server()->SendPackMsg(&Chat, MSGFLAG_VITAL | MSGFLAG_NORECORD, FromClientID, false);
+                return false;
+            }
+
+            const char* pSkin = pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES);
+            int UseCustomColor = pItem->GetInt();
+            int ColorBody = pItem->GetInt();
+            int ColorFeet = pItem->GetInt();
+
+            CTeeInfo TeeInfo(pSkin, UseCustomColor, ColorBody, ColorFeet);
+            TeeInfo.FromSix();
+
+            if(TeeInfo == pPlayer->m_TeeInfos)
+            {
+                return false;
+            }
+
+            CMsgPacker Msg7(NETMSGTYPE_CL_SKINCHANGE, false, false);
+            for(int i = 0; i < NUM_SKINPARTS; i ++)
+			{
+                Msg7.AddString(TeeInfo.m_apSkinPartNames[i], MAX_SKIN_LENGTH);
+			}
+            for(int i = 0; i < NUM_SKINPARTS; i ++)
+			{
+                Msg7.AddInt(TeeInfo.m_aUseCustomColors[i]);
+			}
+            for(int i = 0; i < NUM_SKINPARTS; i ++)
+			{
+                Msg7.AddInt(TeeInfo.m_aSkinPartColors[i]);
+			}
+
+            pPlayer->m_TeeInfos = TeeInfo;
+            
+            *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+            Type = NETMSGTYPE_CL_SKINCHANGE;
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_KILL:
+        {
+            CMsgPacker Msg7(NETMSGTYPE_CL_KILL, false, false);
+
+            *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+            Type = NETMSGTYPE_CL_KILL;
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_EMOTICON:
+        case protocol6::NETMSGTYPE_CL_VOTE:
+        {
+            CMsgPacker Msg7(Msg_SixToSeven(Type), false, false);
+            Msg7.AddInt(pItem->GetInt());
+
+            *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+            Type = Msg_SixToSeven(Type);
+
+            return true;
+        }
+        case protocol6::NETMSGTYPE_CL_CALLVOTE:
+        {
+            CMsgPacker Msg7(NETMSGTYPE_CL_CALLVOTE, false, false);
+            Msg7.AddString(pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES)); // Type
+            Msg7.AddString(pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES)); // Value
+            Msg7.AddString(pItem->GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES)); // Reason
+            Msg7.AddInt(0); // Force
+
+            *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
+            Type = NETMSGTYPE_CL_CALLVOTE;
+
+            return true;
+
+        } 
+    }
+    
+
+    return false;
+}
+
+bool CNetConverter::PrevConvertClientMsg(CMsgUnpacker *pItem, int& Type, bool System, int FromClientID)
+{
+    if(Server()->ClientProtocol(FromClientID) == NETPROTOCOL_SEVEN)
+        return true;
+    
+    if(Server()->ClientProtocol(FromClientID) == NETPROTOCOL_SIX)
+        return DeepConvertClientMsg6(pItem, Type, System, FromClientID);
+
+    return false;
 }
 
 bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, int ID, int Size, int ToClientID)
@@ -305,6 +622,7 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
     if(Unpacker.Error())
         return -1;
 
+    // language
     int TempCode = Server()->GetClientLanguage(ToClientID);
 
     switch (pMsg->Type())
@@ -476,6 +794,10 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
 
             return Server()->SendMsg(&Msg6, Flags, ToClientID);
         }
+        case NETMSGTYPE_SV_SERVERSETTINGS:
+        {
+            // TODO: add message "Team were lock"
+        }
         case NETMSGTYPE_SV_CLIENTINFO:
         {
             Unpacker.GetInt(); // ClientID
@@ -536,6 +858,80 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
         {
             return DeepGameMsgConvert6(pMsg, Flags, ToClientID);
         }
+        case NETMSGTYPE_SV_RACEFINISH:
+        {
+            int ClientID = Unpacker.GetInt();
+            int Time = Unpacker.GetInt();
+            int Diff = Unpacker.GetInt();
+            int RecordPersonal = Unpacker.GetInt();
+            int RecordServer = Unpacker.GetInt();
+
+            // DDNet message NETMSGTYPE_SV_RACEFINISH
+            CMsgPacker MsgDDNet(0, false, false);
+            CUuid UUID = CalculateUuid("racefinish@netmsg.ddnet.org");
+            MsgDDNet.AddRaw(&UUID, sizeof(UUID));
+            MsgDDNet.AddInt(ClientID);
+            MsgDDNet.AddInt(Time);
+            MsgDDNet.AddInt(Diff);
+            MsgDDNet.AddInt(RecordPersonal);
+            MsgDDNet.AddInt(RecordServer);
+
+            Server()->SendMsg(&MsgDDNet, MSGFLAG_VITAL | MSGFLAG_NORECORD, ToClientID);
+            
+            char aBuf[256];
+		    char aTime[32];
+            FormatTime(aTime, sizeof(aTime), Time, 3); // You can change this precision for your race mod
+            if(RecordPersonal || RecordServer)
+		    {
+                if(RecordServer)
+                    str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' has set a new map record: %s"), Server()->ClientName(ClientID), aTime);
+                else // RecordPersonal
+                    str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' has set a new personal record: %s"), Server()->ClientName(ClientID), aTime);
+                
+                protocol6::CNetMsg_Sv_Chat Chat;
+                Chat.m_ClientID = -1;
+                Chat.m_pMessage = aBuf;
+                Chat.m_Team = 0;
+
+                return Server()->SendPackMsg(&Chat, Flags, ToClientID, false);
+            }
+            
+            if(!RecordPersonal && !RecordServer) // don't print the time twice
+			{
+				str_format(aBuf, sizeof(aBuf), Localize(TempCode, "'%s' finished in: %s"), Server()->ClientName(ClientID), aTime);
+
+                protocol6::CNetMsg_Sv_Chat Chat;
+                Chat.m_ClientID = -1;
+                Chat.m_pMessage = aBuf;
+                Chat.m_Team = 0;
+
+                return Server()->SendPackMsg(&Chat, Flags, ToClientID, false);
+			}
+
+            return -1;
+        }
+        case NETMSGTYPE_SV_COMMANDINFO:
+        {
+            // DDNet message NETMSGTYPE_SV_COMMANDINFO
+            CMsgPacker MsgDDNet(0, false, false);
+            CUuid UUID = CalculateUuid("commandinfo@netmsg.ddnet.org");
+            MsgDDNet.AddRaw(&UUID, sizeof(UUID));
+            int Size = Unpacker.Size();
+            MsgDDNet.AddRaw(Unpacker.GetRaw(Size), Size);
+
+            return Server()->SendMsg(&MsgDDNet, MSGFLAG_VITAL | MSGFLAG_NORECORD, ToClientID);
+        }
+        case NETMSGTYPE_SV_COMMANDINFOREMOVE:
+        {
+            // DDNet message NETMSGTYPE_SV_COMMANDINFOREMOVE
+            CMsgPacker MsgDDNet(0, false, false);
+            CUuid UUID = CalculateUuid("commandinfo-remove@netmsg.ddnet.org");
+            MsgDDNet.AddRaw(&UUID, sizeof(UUID));
+            int Size = Unpacker.Size();
+            MsgDDNet.AddRaw(Unpacker.GetRaw(Size), Size);
+
+            return Server()->SendMsg(&MsgDDNet, MSGFLAG_VITAL | MSGFLAG_NORECORD, ToClientID);
+        }
     }
     return -1;
 }
@@ -545,6 +941,7 @@ int CNetConverter::DeepGameMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClient
     CUnpacker Unpacker;
     Unpacker.Reset(pMsg->Data(), pMsg->Size());
 
+    // language
     int TempCode = Server()->GetClientLanguage(ToClientID);
 
     int GameMsgID = Unpacker.GetInt();
@@ -856,6 +1253,11 @@ int CNetConverter::SendSystemMsgConvert(CMsgPacker *pMsg, int Flags, int ToClien
     }
 
     return -1;
+}
+
+void CNetConverter::ResetChatTick()
+{
+    mem_zero(m_aChatTick, sizeof(m_aChatTick));
 }
 
 INetConverter *CreateNetConverter(IServer *pServer, class CConfig *pConfig) { return new CNetConverter(pServer, pConfig); }

@@ -26,6 +26,7 @@
 #include <engine/shared/protocol.h>
 #include <engine/shared/protocol6.h>
 #include <engine/shared/snapshot.h>
+#include <engine/shared/uuid.h>
 
 #ifdef DDNET_MASTER
 	#include <engine/shared/http.h>
@@ -799,6 +800,20 @@ void CServer::SendMap(int ClientID)
 {
 	CMapInfo *pInfo = &m_aMapInfos[m_aClients[ClientID].MapType()];
 
+	if(ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+	{
+		// DDNet message NETMSG_MAP_DETAILS
+		CMsgPacker MsgDDNet(0, true, false);
+		CUuid Uuid = CalculateUuid("map-details@ddnet.tw");
+		MsgDDNet.AddRaw(&Uuid, sizeof(Uuid));
+		MsgDDNet.AddString(GetMapName(), 0);
+		MsgDDNet.AddRaw(&pInfo->m_MapSha256.data, sizeof(pInfo->m_MapSha256.data));
+		MsgDDNet.AddInt(pInfo->m_MapCrc);
+		MsgDDNet.AddInt(pInfo->m_MapSize);
+		MsgDDNet.AddString("", 0); // HTTPS map download URL
+		SendMsg(&MsgDDNet, MSGFLAG_VITAL|MSGFLAG_NORECORD, ClientID);
+	}
+
 	CMsgPacker Msg(NETMSG_MAP_CHANGE, true);
 	Msg.AddString(GetMapName(), 0);
 	Msg.AddInt(pInfo->m_MapCrc);
@@ -901,22 +916,6 @@ void CServer::UpdateClientMapListEntries()
 	}
 }
 
-static inline int MsgFromSevenDown(int Msg, bool System)
-{
-	if(System)
-	{
-		if(Msg == NETMSG_INFO)
-			;
-		else if(Msg >= 14 && Msg <= 19)
-			Msg = NETMSG_READY + Msg - 14;
-		else if(Msg >= 22 && Msg <= 23)
-			Msg = NETMSG_PING + Msg - 22;
-		else return -1;
-	}
-
-	return Msg;
-}
-
 void CServer::ProcessClientPacket(CNetChunk *pPacket)
 {
 	const int ClientID = pPacket->m_ClientID;
@@ -928,7 +927,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 	if(Unpacker.Error())
 		return;
 
-	if((m_aClients[ClientID].m_Protocol == NETPROTOCOL_SIX) && (Msg = MsgFromSevenDown(Msg, System)) < 0)
+	if(!NetConverter()->PrevConvertClientMsg(&Unpacker, Msg, System, ClientID))
 	{
 		return;
 	}

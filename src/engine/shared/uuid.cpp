@@ -76,13 +76,3 @@ bool CUuid::operator<(const CUuid &Other) const
 {
 	return mem_comp(this, &Other, sizeof(*this)) < 0;
 }
-
-static int GetIndex(int ID)
-{
-	return ID - OFFSET_UUID;
-}
-
-static int GetID(int Index)
-{
-	return Index + OFFSET_UUID;
-}

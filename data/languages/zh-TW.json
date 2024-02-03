@@ -29,12 +29,24 @@
 		"value": "'%s' 已連線並加入了旁觀位"
 	},
 	{
+		"key": "'%s' finished in: %s",
+		"value": "'%s' 用時%s完成"
+	},
+	{
 		"key": "'%s' has left the game",
 		"value": "'%s' 離開了遊戲"
 	},
 	{
 		"key": "'%s' has left the game (%s)",
 		"value": "'%s' 離開了遊戲 (%s)"
+	},
+	{
+		"key": "'%s' has set a new map record: %s",
+		"value": "'%s' 打破了地圖最高記錄：%s"
+	},
+	{
+		"key": "'%s' has set a new personal record: %s",
+		"value": "'%s' 打破了個人最高記錄：%s"
 	},
 	{
 		"key": "'%s' initiated a pause",
@@ -101,6 +113,14 @@
 		"value": "成功切換到繁體中文"
 	},
 	{
+		"key": "Teams are locked",
+		"value": "隊伍被鎖定"
+	},
+	{
+		"key": "Teams are locked. Time to wait before changing team: %02d:%02d",
+		"value": "隊伍已鎖定。還有%02d:%02d才能更換隊伍"
+	},
+	{
 		"key": "Teams have been balanced",
 		"value": "雙方隊伍已被平衡分配"
 	},
@@ -143,6 +163,10 @@
 	{
 		"key": "Whisper",
 		"value": "私訊"
+	},
+	{
+		"key": "You must reconnect to change identity.",
+		"value": "你必須重新連線以更改身份"
 	},
 	{
 		"key": "You were moved to the blue team due to team balancing",

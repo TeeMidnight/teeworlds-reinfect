@@ -29,12 +29,24 @@
 		"value": "'%s' 已连接并加入了旁观位"
 	},
 	{
+		"key": "'%s' finished in: %s",
+		"value": "'%s' 用时%s完成"
+	},
+	{
 		"key": "'%s' has left the game",
 		"value": "'%s' 离开了游戏"
 	},
 	{
 		"key": "'%s' has left the game (%s)",
 		"value": "'%s' 离开了游戏 (%s)"
+	},
+	{
+		"key": "'%s' has set a new map record: %s",
+		"value": "'%s' 打破了地图最高记录：%s"
+	},
+	{
+		"key": "'%s' has set a new personal record: %s",
+		"value": "'%s' 打破了个人最高记录：%s"
 	},
 	{
 		"key": "'%s' initiated a pause",
@@ -101,6 +113,14 @@
 		"value": "成功切换到简体中文"
 	},
 	{
+		"key": "Teams are locked",
+		"value": "队伍被锁定"
+	},
+	{
+		"key": "Teams are locked. Time to wait before changing team: %02d:%02d",
+		"value": "队伍已锁定。还有%02d:%02d才能更换队伍"
+	},
+	{
 		"key": "Teams have been balanced",
 		"value": "双方队伍已被平衡分配"
 	},
@@ -145,6 +165,10 @@
 		"value": "私聊"
 	},
 	{
+		"key": "You must reconnect to change identity.",
+		"value": "你必须重新连接以更改身份"
+	},
+	{
 		"key": "You were moved to the blue team due to team balancing",
 		"value": "为了队伍平衡，你被移入蓝队"
 	},
@@ -155,46 +179,6 @@
 	{
 		"key": "use /language <Code> change your language",
 		"value": "使用/language <语言> 切换你的语言"
-	},
-	{
-		"key": "Kick voting requires %d players on the server",
-		"value": "踢除投票需要服务器中至少有%d名玩家才能发起"
-	},
-	{
-		"key": "Only %d active players are allowed",
-		"value": "服务器只允许%d名玩家加入游戏"
-	},
-	{
-		"key": "Server does not allow voting to kick players",
-		"value": "服务器不允许投票踢除玩家"
-	},
-	{
-		"key": "Server does not allow voting to move players to spectators",
-		"value": "服务器不允许投票将玩家移至旁观位"
-	},
-	{
-		"key": "Spectators aren't allowed to start a vote.",
-		"value": "旁观者不能发起投票。"
-	},
-	{
-		"key": "Teams are locked",
-		"value": "队伍被锁定"
-	},
-	{
-		"key": "Teams are locked. Time to wait before changing team: %02d:%02d",
-		"value": "队伍已锁定。还有%02d:%02d才能更换队伍"
-	},
-	{
-		"key": "Teams were locked",
-		"value": "队伍已被锁定"
-	},
-	{
-		"key": "Teams were unlocked",
-		"value": "队伍已被解锁"
-	},
-	{
-		"key": "You must wait %d seconds before making another vote",
-		"value": "你必须再等%d秒钟才能发起新的投票"
 	}
 ]
 }

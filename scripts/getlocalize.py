@@ -36,8 +36,8 @@ def ReadLanguageFile(path):
         data = json.loads(langfile.read())
 
         for i in data['translated strings']:
-            SortTranslate.setdefault(str(i['key']), "")
-            SortTranslate[str(i['key'])] = str(i["value"])
+            if str(i['key']) in SortTranslate:
+                SortTranslate[str(i['key'])] = str(i["value"])
 
         langfile.close()
     except:

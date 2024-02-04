@@ -22,6 +22,7 @@ public:
 	virtual int SendSystemMsgConvert(CMsgPacker *pMsg, int Flags, int ToClientID, int Depth = 0) = 0;
 	virtual void Init(class CGameContext *pGameServer) = 0;
 	virtual void ResetChatTick() = 0;
+	virtual void ResetSnapItemsEx() = 0;
 };
 
 extern INetConverter *CreateNetConverter(class IServer *pServer, class CConfig *pConfig);

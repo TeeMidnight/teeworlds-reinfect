@@ -228,7 +228,7 @@ bool CNetConverter::DeepConvertClientMsg6(CMsgUnpacker *pItem, int& Type, bool S
                 return false;
             }
 
-            if(pPlayer->m_TeamChangeTick <= Server()->Tick())
+            if(pPlayer->m_TeamChangeTick > Server()->Tick())
             {
                 if(m_aChatTick[FromClientID] + 5 * Server()->TickSpeed() > Server()->Tick())
                     return false;
@@ -420,6 +420,29 @@ bool CNetConverter::PrevConvertClientMsg(CMsgUnpacker *pItem, int& Type, bool Sy
     return false;
 }
 
+int CNetConverter::GetExSnapID(int ClientID, const char *pUuidStr, int ID)
+{
+    for(int i = 0; i < m_NumSnapItemsEx[ClientID]; i ++)
+    {
+        if(m_SnapItemEx[ClientID][i] == ID)
+        {
+            return i;
+        }
+    }
+    CUuid Uuid = CalculateUuid(pUuidStr);
+    int Index = m_NumSnapItemsEx[ClientID];
+    m_NumSnapItemsEx[ClientID] ++;
+    int SnapID = 0x7fff - Index;
+    int *pUuidItem = (int *)Server()->SnapNewItem(0, SnapID, sizeof(Uuid)); // NETOBJTYPE_EX
+    if(pUuidItem)
+    {
+        for(size_t i = 0; i < sizeof(CUuid) / sizeof(int32_t); i++)
+            pUuidItem[i] = bytes_be_to_uint(&Uuid.m_aData[i * sizeof(int32_t)]);
+    }
+
+    return SnapID;
+}
+
 bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, int ID, int Size, int ToClientID)
 {
     // TODO: MOVE THESE TO THEIR FUNCTION
@@ -484,6 +507,25 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_RoundNum = (str_length(Config()->m_SvMaprotation) && Config()->m_SvMatchesPerMap) ? Config()->m_SvMatchesPerMap : 0;
             pObj6->m_RoundCurrent = ((IGameController *) pSnapClass)->MatchCount();
 
+            // DDNet NETOBJTYPE_GAMEINFOEX "gameinfo@netobj.ddnet.tw"
+            int SnapID = GetExSnapID(ToClientID, "gameinfo@netobj.ddnet.tw", protocol6::NETOBJTYPE_GAMEINFOEX);
+            protocol6::CNetObj_GameInfoEx *pObjDDNet = static_cast<protocol6::CNetObj_GameInfoEx *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_GameInfoEx)));
+            if(!pObjDDNet)
+                return false;
+                
+            pObjDDNet->m_Flags = 
+                protocol6::GAMEINFOFLAG_ENTITIES_VANILLA |
+                protocol6::GAMEINFOFLAG_PREDICT_VANILLA |
+                protocol6::GAMEINFOFLAG_GAMETYPE_VANILLA |
+                protocol6::GAMEINFOFLAG_DONT_MASK_ENTITIES; // if your mod is a race mod, change this
+            
+            pObjDDNet->m_Flags2 = 
+                protocol6::GAMEINFOFLAG2_HUD_HEALTH_ARMOR |
+                protocol6::GAMEINFOFLAG2_HUD_AMMO |
+                protocol6::GAMEINFOFLAG2_HUD_DDRACE |
+                protocol6::GAMEINFOFLAG2_NO_WEAK_HOOK; // if your mod is a race mod, change this
+	        pObjDDNet->m_Version = protocol6::GAMEINFO_CURVERSION;
+            
             return true;
         };
         case NETOBJTYPE_GAMEDATAFLAG:
@@ -533,6 +575,41 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_X = pObj7->m_X;
             pObj6->m_Y = pObj7->m_Y;
 
+            // TODO: There is a snap problem need fix
+            CCharacter *pFrom = (CCharacter *) pSnapClass;
+            // DDNet NETOBJTYPE_DDNETCHARACTER "character@netobj.ddnet.tw"
+            int SnapID = GetExSnapID(ToClientID, "character@netobj.ddnet.tw", protocol6::NETOBJTYPE_DDNETCHARACTER);
+            protocol6::CNetObj_DDNetCharacter *pObjDDNet = static_cast<protocol6::CNetObj_DDNetCharacter *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_DDNetCharacter)));
+            if(!pObjDDNet)
+                return false;
+            
+            pObjDDNet->m_Flags = 0;
+            if(pFrom->WeaponStat(WEAPON_HAMMER)->m_Got)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_HAMMER;
+            if(pFrom->WeaponStat(WEAPON_GUN)->m_Got)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_GUN;
+            if(pFrom->WeaponStat(WEAPON_SHOTGUN)->m_Got)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_SHOTGUN;
+            if(pFrom->WeaponStat(WEAPON_GRENADE)->m_Got)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_GRENADE;
+            if(pFrom->WeaponStat(WEAPON_LASER)->m_Got)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_LASER;
+            if(pFrom->WeaponStat(WEAPON_NINJA)->m_Got)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_NINJA;
+            if(!GameServer()->Tuning()->m_PlayerCollision)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_COLLISION_DISABLED;
+            if(!GameServer()->Tuning()->m_PlayerHooking)
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_HOOK_HIT_DISABLED;
+            pObjDDNet->m_FreezeStart = -1;
+            pObjDDNet->m_FreezeEnd = 0;
+            pObjDDNet->m_Jumps = 2;
+            pObjDDNet->m_TeleCheckpoint = -1; // if your mod is race mod, please change this
+            pObjDDNet->m_StrongWeakID = 0;
+            pObjDDNet->m_NinjaActivationTick = pFrom->NinjaStat()->m_ActivationTick;
+            pObjDDNet->m_JumpedTotal = pFrom->Core()->m_JumpCounter;
+            pObjDDNet->m_TargetX = pFrom->Core()->m_Input.m_TargetX;
+            pObjDDNet->m_TargetY = pFrom->Core()->m_Input.m_TargetY;
+
             return true;
         }
         case NETOBJTYPE_PLAYERINFO:
@@ -564,6 +641,16 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_Score = pObj7->m_Score;
             pObj6->m_Team = ((CPlayer *) pSnapClass)->m_DeadSpecMode ? protocol6::TEAM_SPECTATORS : ((CPlayer *) pSnapClass)->GetTeam();
 
+            // DDNet NETOBJTYPE_DDNETPLAYER "player@netobj.ddnet.tw"
+            int SnapID = GetExSnapID(ToClientID, "player@netobj.ddnet.tw", protocol6::NETOBJTYPE_DDNETPLAYER);
+            protocol6::CNetObj_DDNetPlayer *pObjDDNet = static_cast<protocol6::CNetObj_DDNetPlayer *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_DDNetPlayer)));
+            if(!pObjDDNet)
+                return false;
+            
+            int Level = Server()->AuthedLevel(ToClientID);
+            pObjDDNet->m_AuthLevel = Level == 0 ? 0 : Level + 1;
+            pObjDDNet->m_Flags = 0;
+
             return true;
         }
         case NETOBJTYPE_SPECTATORINFO:
@@ -583,11 +670,23 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
         case NETEVENTTYPE_DAMAGE:
         {
             CNetEvent_Damage *pEvent7 = (CNetEvent_Damage*) pItem;
-            protocol6::CNetEvent_DamageInd *pEvent6 = static_cast<protocol6::CNetEvent_DamageInd *>(Server()->SnapNewItem(protocol6::NETEVENTTYPE_DAMAGEIND, ID, sizeof(protocol6::CNetEvent_DamageInd)));
+            float Angle = pEvent7->m_Angle / 256.0f;
+	        float a = 3 * 3.14159f / 2 + Angle;
+            float s = a-pi/3;
+            float e = a+pi/3;
+            ID = ((CEventHandler *) pSnapClass)->NumEvents();
+            for(int i = 0; i < pEvent7->m_ArmorAmount + pEvent7->m_HealthAmount; i++, ID++)
+            {
+                if(ID >= MAX_EVENTS)
+                    break;
 
-            pEvent6->m_Angle = pEvent7->m_Angle;
-            pEvent6->m_X = pEvent7->m_X;
-            pEvent6->m_Y = pEvent7->m_Y;
+                float f = mix(s, e, float(i+1)/float(pEvent7->m_ArmorAmount + pEvent7->m_HealthAmount+2));
+                protocol6::CNetEvent_DamageInd *pEvent6 = static_cast<protocol6::CNetEvent_DamageInd *>(Server()->SnapNewItem(protocol6::NETEVENTTYPE_DAMAGEIND, ID, sizeof(protocol6::CNetEvent_DamageInd)));
+                pEvent6->m_X = pEvent7->m_X;
+                pEvent6->m_Y = pEvent7->m_Y;
+                pEvent6->m_Angle = (int)(f*256.0f);
+		    }
+            return true;
         }
     }
     return false;
@@ -657,10 +756,10 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
             if(ChatterClientID != -1 && Mode == CHAT_WHISPER)
             {
                 char aChat[512];
-                str_format(aChat, sizeof(aChat), "(%s)%s: %s", Localize(TempCode, "Whisper"), TargetID == ToClientID ? "<" : ">", pMessage);
-
-                Msg6.AddInt(Team); // Team
-                Msg6.AddInt(ChatterClientID);
+                str_format(aChat, sizeof(aChat), "(%s): %s", Localize(TempCode, "Whisper"), pMessage);
+                // 3 = recv, 2 = send
+                Msg6.AddInt(TargetID == ToClientID ? 3 : 2); // Team
+                Msg6.AddInt(TargetID == ToClientID ? ChatterClientID : TargetID);
                 Msg6.AddString(aChat, -1);
             }
             else
@@ -868,8 +967,8 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
 
             // DDNet message NETMSGTYPE_SV_RACEFINISH
             CMsgPacker MsgDDNet(0, false, false);
-            CUuid UUID = CalculateUuid("racefinish@netmsg.ddnet.org");
-            MsgDDNet.AddRaw(&UUID, sizeof(UUID));
+            CUuid Uuid = CalculateUuid("racefinish@netmsg.ddnet.org");
+            MsgDDNet.AddRaw(&Uuid, sizeof(Uuid));
             MsgDDNet.AddInt(ClientID);
             MsgDDNet.AddInt(Time);
             MsgDDNet.AddInt(Diff);
@@ -914,8 +1013,8 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
         {
             // DDNet message NETMSGTYPE_SV_COMMANDINFO
             CMsgPacker MsgDDNet(0, false, false);
-            CUuid UUID = CalculateUuid("commandinfo@netmsg.ddnet.org");
-            MsgDDNet.AddRaw(&UUID, sizeof(UUID));
+            CUuid Uuid = CalculateUuid("commandinfo@netmsg.ddnet.org");
+            MsgDDNet.AddRaw(&Uuid, sizeof(Uuid));
             int Size = Unpacker.Size();
             MsgDDNet.AddRaw(Unpacker.GetRaw(Size), Size);
 
@@ -925,8 +1024,8 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
         {
             // DDNet message NETMSGTYPE_SV_COMMANDINFOREMOVE
             CMsgPacker MsgDDNet(0, false, false);
-            CUuid UUID = CalculateUuid("commandinfo-remove@netmsg.ddnet.org");
-            MsgDDNet.AddRaw(&UUID, sizeof(UUID));
+            CUuid Uuid = CalculateUuid("commandinfo-remove@netmsg.ddnet.org");
+            MsgDDNet.AddRaw(&Uuid, sizeof(Uuid));
             int Size = Unpacker.Size();
             MsgDDNet.AddRaw(Unpacker.GetRaw(Size), Size);
 
@@ -1258,6 +1357,12 @@ int CNetConverter::SendSystemMsgConvert(CMsgPacker *pMsg, int Flags, int ToClien
 void CNetConverter::ResetChatTick()
 {
     mem_zero(m_aChatTick, sizeof(m_aChatTick));
+}
+
+void CNetConverter::ResetSnapItemsEx()
+{
+    for(int i = 0; i < MAX_CLIENTS; i ++)
+        m_NumSnapItemsEx[i] = 0;
 }
 
 INetConverter *CreateNetConverter(IServer *pServer, class CConfig *pConfig) { return new CNetConverter(pServer, pConfig); }

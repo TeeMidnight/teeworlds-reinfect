@@ -422,6 +422,11 @@ void CServer::SetRconCID(int ClientID)
 	m_RconClientID = ClientID;
 }
 
+int CServer::AuthedLevel(int ClientID) const
+{
+	return m_aClients[ClientID].m_Authed;
+}
+
 bool CServer::IsAuthed(int ClientID) const
 {
 	return m_aClients[ClientID].m_Authed;
@@ -612,6 +617,8 @@ void CServer::DoSnapshot()
 		// write snapshot
 		m_DemoRecorder.RecordSnapshot(Tick(), aData, SnapshotSize);
 	}
+
+	NetConverter()->ResetSnapItemsEx();
 
 	// create snapshots for all clients
 	for(int i = 0; i < MAX_CLIENTS; i++)

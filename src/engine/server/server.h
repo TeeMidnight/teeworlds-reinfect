@@ -346,6 +346,7 @@ public:
 	virtual void *SnapNewItem(int Type, int ID, int Size);
 	void SnapSetStaticsize(int ItemType, int Size);
 
+	int AuthedLevel(int ClientID) const override;
 };
 
 #endif

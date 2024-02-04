@@ -110,7 +110,7 @@ private:
 	int m_TriggeredEvents;
 
 	// ninja
-	struct
+	struct NinjaStat
 	{
 		vec2 m_ActivationDir;
 		int m_ActivationTick;
@@ -125,7 +125,10 @@ private:
 	int m_ReckoningTick; // tick that we are performing dead reckoning From
 	CCharacterCore m_SendCore; // core that we should send
 	CCharacterCore m_ReckoningCore; // the dead reckoning core
-
+public:
+	CCharacterCore *Core() { return &m_Core; }
+	NinjaStat *NinjaStat() { return &m_Ninja; }
+	WeaponStat *WeaponStat(int Weapon) { return &m_aWeapons[Weapon]; }
 };
 
 #endif

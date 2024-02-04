@@ -120,12 +120,14 @@ void CCharacterCore::Tick(bool UseInput)
 					m_TriggeredEvents |= COREEVENTFLAG_GROUND_JUMP;
 					m_Vel.y = -m_pWorld->m_Tuning.m_GroundJumpImpulse;
 					m_Jumped |= 1;
+					m_JumpCounter ++;
 				}
 				else if(!(m_Jumped&2))
 				{
 					m_TriggeredEvents |= COREEVENTFLAG_AIR_JUMP;
 					m_Vel.y = -m_pWorld->m_Tuning.m_AirJumpImpulse;
 					m_Jumped |= 3;
+					m_JumpCounter ++;
 				}
 			}
 		}
@@ -165,8 +167,11 @@ void CCharacterCore::Tick(bool UseInput)
 	// 1 bit = to keep track if a jump has been made on this input
 	// 2 bit = to keep track if a air-jump has been made
 	if(Grounded)
+	{
 		m_Jumped &= ~2;
-
+		m_JumpCounter = 0;
+	}
+	
 	// do hook
 	if(m_HookState == HOOK_IDLE)
 	{

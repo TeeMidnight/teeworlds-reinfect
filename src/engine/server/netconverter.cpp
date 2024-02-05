@@ -507,6 +507,9 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_RoundNum = (str_length(Config()->m_SvMaprotation) && Config()->m_SvMatchesPerMap) ? Config()->m_SvMatchesPerMap : 0;
             pObj6->m_RoundCurrent = ((IGameController *) pSnapClass)->MatchCount();
 
+            if(!Config()->m_SvDDNetSnap)
+                return true;
+
             // DDNet NETOBJTYPE_GAMEINFOEX "gameinfo@netobj.ddnet.tw"
             int SnapID = GetExSnapID(ToClientID, "gameinfo@netobj.ddnet.tw", protocol6::NETOBJTYPE_GAMEINFOEX);
             protocol6::CNetObj_GameInfoEx *pObjDDNet = static_cast<protocol6::CNetObj_GameInfoEx *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_GameInfoEx)));
@@ -575,6 +578,9 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_X = pObj7->m_X;
             pObj6->m_Y = pObj7->m_Y;
 
+            if(!Config()->m_SvDDNetSnap)
+                return true;
+
             // TODO: There is a snap problem need fix
             CCharacter *pFrom = (CCharacter *) pSnapClass;
             // DDNet NETOBJTYPE_DDNETCHARACTER "character@netobj.ddnet.tw"
@@ -640,6 +646,9 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_Local = (ClientID == ToClientID) ? 1 : 0;
             pObj6->m_Score = pObj7->m_Score;
             pObj6->m_Team = ((CPlayer *) pSnapClass)->m_DeadSpecMode ? protocol6::TEAM_SPECTATORS : ((CPlayer *) pSnapClass)->GetTeam();
+
+            if(!Config()->m_SvDDNetSnap)
+                return true;
 
             // DDNet NETOBJTYPE_DDNETPLAYER "player@netobj.ddnet.tw"
             int SnapID = GetExSnapID(ToClientID, "player@netobj.ddnet.tw", protocol6::NETOBJTYPE_DDNETPLAYER);

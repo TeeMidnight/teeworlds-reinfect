@@ -647,6 +647,10 @@ void CServer::DoSnapshot()
 
 			m_SnapshotBuilder.Init();
 
+			// snap ex item
+			if(m_aClients[i].m_Protocol == NETPROTOCOL_SIX)
+				NetConverter()->SnapItemUuid(i);
+
 			GameServer()->OnSnap(i);
 
 			// finish snapshot

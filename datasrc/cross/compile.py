@@ -109,10 +109,6 @@ if gen_network_header:
 		for l in create_flags_table(["%s_%s" % (e.name, v) for v in e.values]): print(l)
 		print("")
 
-	for line in create_enum_table([o.enum_name for o in network.ObjectsEx], "OFFSET_NETMSGTYPE_UUID"):
-		print(line)
-	print("")
-
 	for l in create_enum_table(["NETOBJ_INVALID"]+[o.enum_name for o in network.Objects], "NUM_NETOBJTYPES"): print(l)
 	print("")
 	for l in create_enum_table(["NETMSG_INVALID"]+[o.enum_name for o in network.Messages], "NUM_NETMSGTYPES"): print(l)

@@ -15,7 +15,7 @@ private:
     class CGameContext *GameServer() { return m_pGameServer; }
     class CConfig *Config() { return m_pConfig; }
 
-    int GetExSnapID(const char *pUuidStr, int ID);
+    int GetExSnapID(const char *pUuidStr);
 
     bool DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, int ID, int Size, int ToClientID);
     bool DeepConvertClientMsg6(CMsgUnpacker *pItem, int& Type, bool System, int FromClientID);
@@ -25,7 +25,7 @@ private:
 
     int m_GameFlags;
     int64 m_aChatTick[MAX_CLIENTS];
-    int m_SnapItemEx[64];
+    CUuid m_SnapItemEx[64];
     int m_NumSnapItemsEx;
 
 public:
@@ -41,6 +41,7 @@ public:
 	int SendSystemMsgConvert(CMsgPacker *pMsg, int Flags, int ToClientID, int Depth = 0) override;
     void ResetChatTick() override;
     void ResetSnapItemsEx() override;
+    void SnapItemUuid(int ClientID) override;
 };
 
 #endif

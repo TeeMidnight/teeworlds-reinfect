@@ -426,35 +426,19 @@ bool CNetConverter::PrevConvertClientMsg(CMsgUnpacker *pItem, int& Type, bool Sy
     return false;
 }
 
-int CNetConverter::GetExSnapID(const char *pUuidStr, int ID)
+int CNetConverter::GetExSnapID(const char *pUuidStr)
 {
+    CUuid Uuid = CalculateUuid(pUuidStr);
     for(int i = 0; i < m_NumSnapItemsEx; i ++)
     {
-        if(m_SnapItemEx[i] == ID)
+        if(m_SnapItemEx[i] == Uuid)
         {
-            CUuid Uuid = CalculateUuid(pUuidStr);
-            int *pUuidItem = (int *)Server()->SnapNewItem(0, MAX_DDNETSNAP_TYPE - i, sizeof(Uuid)); // NETOBJTYPE_EX
-            if(pUuidItem)
-            {
-                for(size_t i = 0; i < sizeof(CUuid) / sizeof(int32_t); i++)
-                    pUuidItem[i] = bytes_be_to_uint(&Uuid.m_aData[i * sizeof(int32_t)]);
-            }
             return MAX_DDNETSNAP_TYPE - i;
         }
     }
-    CUuid Uuid = CalculateUuid(pUuidStr);
     int Index = m_NumSnapItemsEx ++;
-    m_SnapItemEx[Index] = ID;
-
-    int SnapID = MAX_DDNETSNAP_TYPE - Index;
-    int *pUuidItem = (int *)Server()->SnapNewItem(0, SnapID, sizeof(Uuid)); // NETOBJTYPE_EX
-    if(pUuidItem)
-    {
-        for(size_t i = 0; i < sizeof(CUuid) / sizeof(int32_t); i++)
-            pUuidItem[i] = bytes_be_to_uint(&Uuid.m_aData[i * sizeof(int32_t)]);
-    }
-
-    return SnapID;
+    mem_copy(&m_SnapItemEx[Index], &Uuid, sizeof(m_SnapItemEx[Index]));
+    return MAX_DDNETSNAP_TYPE - Index;
 }
 
 bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, int ID, int Size, int ToClientID)
@@ -525,8 +509,7 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
                 return true;
 
             // DDNet NETOBJTYPE_GAMEINFOEX "gameinfo@netobj.ddnet.tw"
-            int SnapID = GetExSnapID("gameinfo@netobj.ddnet.tw", protocol6::NETOBJTYPE_GAMEINFOEX);
-            protocol6::CNetObj_GameInfoEx *pObjDDNet = static_cast<protocol6::CNetObj_GameInfoEx *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_GameInfoEx)));
+            protocol6::CNetObj_GameInfoEx *pObjDDNet = static_cast<protocol6::CNetObj_GameInfoEx *>(Server()->SnapNewItem(GetExSnapID("gameinfo@netobj.ddnet.tw"), ID, sizeof(protocol6::CNetObj_GameInfoEx)));
             if(!pObjDDNet)
                 return false;
                 
@@ -595,12 +578,10 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             if(!Config()->m_SvDDNetSnap)
                 return true;
 
-            // TODO: There is a snap problem need fix
             CCharacter *pFrom = (CCharacter *) pSnapClass;
-            
+
             // DDNet NETOBJTYPE_DDNETCHARACTER "character@netobj.ddnet.tw"
-            int SnapID = GetExSnapID("character@netobj.ddnet.tw", protocol6::NETOBJTYPE_DDNETCHARACTER);
-            protocol6::CNetObj_DDNetCharacter *pObjDDNet = static_cast<protocol6::CNetObj_DDNetCharacter *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_DDNetCharacter)));
+            protocol6::CNetObj_DDNetCharacter *pObjDDNet = static_cast<protocol6::CNetObj_DDNetCharacter *>(Server()->SnapNewItem(GetExSnapID("character@netobj.ddnet.tw"), ID, sizeof(protocol6::CNetObj_DDNetCharacter)));
             if(!pObjDDNet)
                 return false;
             
@@ -666,8 +647,7 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
                 return true;
 
             // DDNet NETOBJTYPE_DDNETPLAYER "player@netobj.ddnet.tw"
-            int SnapID = GetExSnapID("player@netobj.ddnet.tw", protocol6::NETOBJTYPE_DDNETPLAYER);
-            protocol6::CNetObj_DDNetPlayer *pObjDDNet = static_cast<protocol6::CNetObj_DDNetPlayer *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_DDNetPlayer)));
+            protocol6::CNetObj_DDNetPlayer *pObjDDNet = static_cast<protocol6::CNetObj_DDNetPlayer *>(Server()->SnapNewItem(GetExSnapID("player@netobj.ddnet.tw"), ID, sizeof(protocol6::CNetObj_DDNetPlayer)));
             if(!pObjDDNet)
                 return false;
             
@@ -1387,6 +1367,19 @@ void CNetConverter::ResetSnapItemsEx()
 {
     m_NumSnapItemsEx = 0;
     mem_zero(m_SnapItemEx, sizeof(m_SnapItemEx));
+}
+
+void CNetConverter::SnapItemUuid(int ClientID)
+{
+    for(int i = 0; i < m_NumSnapItemsEx; i ++)
+    {
+        int *pUuidItem = (int *)Server()->SnapNewItem(0, MAX_DDNETSNAP_TYPE - i, sizeof(m_SnapItemEx[i])); // NETOBJTYPE_EX
+        if(pUuidItem)
+        {
+            for(size_t j = 0; j < sizeof(CUuid) / sizeof(int32_t); j ++)
+                pUuidItem[j] = bytes_be_to_uint(&m_SnapItemEx[i].m_aData[j * sizeof(int32_t)]);
+        }
+    }
 }
 
 INetConverter *CreateNetConverter(IServer *pServer, class CConfig *pConfig) { return new CNetConverter(pServer, pConfig); }

@@ -618,8 +618,6 @@ void CServer::DoSnapshot()
 		m_DemoRecorder.RecordSnapshot(Tick(), aData, SnapshotSize);
 	}
 
-	NetConverter()->ResetSnapItemsEx();
-
 	// create snapshots for all clients
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -1850,6 +1848,9 @@ int CServer::LoadMap(const char *pMapName)
 
 	// reinit snapshot ids
 	m_IDPool.TimeoutIDs();
+
+	// reset snap items ex
+	NetConverter()->ResetSnapItemsEx();
 
 	for(int i = NUM_MAPTYPES - 1; i > MAPTYPE_SEVEN; i --)
 	{

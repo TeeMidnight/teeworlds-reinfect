@@ -20,6 +20,11 @@
 
 #include "netconverter.h"
 
+enum
+{
+    MAX_DDNETSNAP_TYPE=0x7fff,
+};
+
 static int PickupTypeTo6(int Pickup)
 {
 	switch (Pickup)
@@ -428,20 +433,20 @@ int CNetConverter::GetExSnapID(const char *pUuidStr, int ID)
         if(m_SnapItemEx[i] == ID)
         {
             CUuid Uuid = CalculateUuid(pUuidStr);
-            int *pUuidItem = (int *)Server()->SnapNewItem(0, 0x7fff - i, sizeof(Uuid)); // NETOBJTYPE_EX
+            int *pUuidItem = (int *)Server()->SnapNewItem(0, MAX_DDNETSNAP_TYPE - i, sizeof(Uuid)); // NETOBJTYPE_EX
             if(pUuidItem)
             {
                 for(size_t i = 0; i < sizeof(CUuid) / sizeof(int32_t); i++)
                     pUuidItem[i] = bytes_be_to_uint(&Uuid.m_aData[i * sizeof(int32_t)]);
             }
-            return 0x7fff - i;
+            return MAX_DDNETSNAP_TYPE - i;
         }
     }
     CUuid Uuid = CalculateUuid(pUuidStr);
     int Index = m_NumSnapItemsEx ++;
     m_SnapItemEx[Index] = ID;
 
-    int SnapID = 0x7fff - Index;
+    int SnapID = MAX_DDNETSNAP_TYPE - Index;
     int *pUuidItem = (int *)Server()->SnapNewItem(0, SnapID, sizeof(Uuid)); // NETOBJTYPE_EX
     if(pUuidItem)
     {
@@ -592,6 +597,7 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
 
             // TODO: There is a snap problem need fix
             CCharacter *pFrom = (CCharacter *) pSnapClass;
+            
             // DDNet NETOBJTYPE_DDNETCHARACTER "character@netobj.ddnet.tw"
             int SnapID = GetExSnapID("character@netobj.ddnet.tw", protocol6::NETOBJTYPE_DDNETCHARACTER);
             protocol6::CNetObj_DDNetCharacter *pObjDDNet = static_cast<protocol6::CNetObj_DDNetCharacter *>(Server()->SnapNewItem(SnapID, ID, sizeof(protocol6::CNetObj_DDNetCharacter)));

@@ -217,7 +217,7 @@ bool CNetConverter::DeepConvertClientMsg6(CMsgUnpacker *pItem, int& Type, bool S
         {
             int Team = pItem->GetInt();
 
-            if(GameServer()->m_LockTeams && pPlayer->GetTeam() != TEAM_SPECTATORS)
+            if(GameServer()->m_LockTeams)
             {
                 if(m_aChatTick[FromClientID] + 5 * Server()->TickSpeed() > Server()->Tick())
                     return false;
@@ -602,6 +602,8 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
                 pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_COLLISION_DISABLED;
             if(!GameServer()->Tuning()->m_PlayerHooking)
                 pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_HOOK_HIT_DISABLED;
+            if(GameServer()->m_LockTeams || pFrom->GetPlayer()->m_TeamChangeTick > Server()->Tick())
+                pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_LOCK_MODE;
             pObjDDNet->m_FreezeStart = -1;
             pObjDDNet->m_FreezeEnd = 0;
             pObjDDNet->m_Jumps = 2;

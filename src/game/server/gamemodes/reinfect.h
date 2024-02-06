@@ -1,14 +1,14 @@
-#ifndef GAME_SERVER_GAMEMODES_INFECTWAR_H
-#define GAME_SERVER_GAMEMODES_INFECTWAR_H
+#ifndef GAME_SERVER_GAMEMODES_REINFECT_H
+#define GAME_SERVER_GAMEMODES_REINFECT_H
 
 #include <game/server/gamecontroller.h>
 
-class CGameControllerInfectWar : public IGameController
+class CGameControllerReinfect : public IGameController
 {
     bool m_Infects[MAX_CLIENTS];
     int m_NumNeedInfects;
 public:
-    CGameControllerInfectWar(CGameContext *pGameServer);
+    CGameControllerReinfect(CGameContext *pGameServer);
 
     void InfectPlayer(int ClientID, bool Chat = false);
     void ChooseInfects();
@@ -25,4 +25,4 @@ public:
     void Tick() override;
 };
 
-#endif // GAME_SERVER_GAMEMODES_INFECTWAR_H
+#endif // GAME_SERVER_GAMEMODES_REINFECT_H

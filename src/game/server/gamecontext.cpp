@@ -18,7 +18,7 @@
 
 #include "entities/character.h"
 #include "entities/projectile.h"
-#include "gamemodes/infectwar.h"
+#include "gamemodes/reinfect.h"
 #include "gamecontext.h"
 #include "player.h"
 
@@ -1743,7 +1743,7 @@ void CGameContext::OnInit()
 	m_Collision.Init(&m_Layers);
 
 	// select gametype
-	m_pController = new CGameControllerInfectWar(this);
+	m_pController = new CGameControllerReinfect(this);
 
 	m_pController->RegisterChatCommands(CommandManager());
 

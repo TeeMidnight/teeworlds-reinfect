@@ -78,7 +78,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   src/game/version.h
 )
 
-set(SERVER_EXECUTABLE InfectWar-Server CACHE STRING "Name of the built server executable")
+set(SERVER_EXECUTABLE reinfect-Server CACHE STRING "Name of the built server executable")
 
 ########################################################################
 # Compiler flags
@@ -608,8 +608,8 @@ set_glob(GAME_SERVER GLOB_RECURSE src/game/server
   gamecontext.h
   gamecontroller.cpp
   gamecontroller.h
-  gamemodes/infectwar.cpp
-  gamemodes/infectwar.h
+  gamemodes/reinfect.cpp
+  gamemodes/reinfect.h
   gameworld.cpp
   gameworld.h
   player.cpp

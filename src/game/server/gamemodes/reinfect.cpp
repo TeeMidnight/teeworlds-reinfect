@@ -10,7 +10,7 @@
 
 #include <vector>
 
-#include "infectwar.h"
+#include "reinfect.h"
 
 static CTeeInfo s_InfectInfo;
 
@@ -24,10 +24,10 @@ static int HSLA_to_int(int H, int S, int L, int Alpha = 255)
 	return color;
 }
 
-CGameControllerInfectWar::CGameControllerInfectWar(CGameContext *pGameServer) :
+CGameControllerReinfect::CGameControllerReinfect(CGameContext *pGameServer) :
     IGameController(pGameServer)
 {
-    m_pGameType = "InfectWar";
+    m_pGameType = "Reinfect";
     m_GameFlags = 0;
     
     str_copy(s_InfectInfo.m_apSkinPartNames[SKINPART_BODY], "standard", sizeof(s_InfectInfo.m_apSkinPartNames[SKINPART_BODY]));
@@ -57,7 +57,7 @@ CGameControllerInfectWar::CGameControllerInfectWar(CGameContext *pGameServer) :
 	s_InfectInfo.m_ColorFeet = HSLA_to_int(0, 255, 134);
 }
 
-void CGameControllerInfectWar::InfectPlayer(int ClientID, bool Chat)
+void CGameControllerReinfect::InfectPlayer(int ClientID, bool Chat)
 {
 	if(m_Infects[ClientID])
 		return;
@@ -102,7 +102,7 @@ void CGameControllerInfectWar::InfectPlayer(int ClientID, bool Chat)
 	}
 }
 
-void CGameControllerInfectWar::ChooseInfects()
+void CGameControllerReinfect::ChooseInfects()
 {
 	int Infects = 0, Players = 0;
 	std::vector<int> vHumansID;
@@ -147,7 +147,7 @@ void CGameControllerInfectWar::ChooseInfects()
 	}
 }
 
-bool CGameControllerInfectWar::DoWincheckMatch()
+bool CGameControllerReinfect::DoWincheckMatch()
 {
 	// check for time based win
 	if((m_GameInfo.m_TimeLimit > 0 && (Server()->Tick()-m_GameStartTick) >= m_GameInfo.m_TimeLimit*Server()->TickSpeed()*60))
@@ -195,7 +195,7 @@ bool CGameControllerInfectWar::DoWincheckMatch()
 	return false;
 }
 
-bool CGameControllerInfectWar::IsFriendlyFire(int ClientID1, int ClientID2) const
+bool CGameControllerReinfect::IsFriendlyFire(int ClientID1, int ClientID2) const
 {
 	if(ClientID1 < 0 || ClientID1 >= MAX_CLIENTS)
 		return false;
@@ -208,7 +208,7 @@ bool CGameControllerInfectWar::IsFriendlyFire(int ClientID1, int ClientID2) cons
 }
 
 // event
-int CGameControllerInfectWar::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
+int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
 {
 	// do scoreing
 	if(!pKiller || Weapon == WEAPON_GAME)
@@ -235,7 +235,7 @@ int CGameControllerInfectWar::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKi
 	return 0;
 }
 
-void CGameControllerInfectWar::OnPlayerInfoChange(CPlayer *pPlayer)
+void CGameControllerReinfect::OnPlayerInfoChange(CPlayer *pPlayer)
 {
 	const int aTeamColors[2] = {65387, 10223467}; // Only for 0.6, We don't need care 0.7
 	if(IsTeamplay())
@@ -254,7 +254,7 @@ void CGameControllerInfectWar::OnPlayerInfoChange(CPlayer *pPlayer)
 	}
 }
 
-void CGameControllerInfectWar::OnCharacterSpawn(CCharacter *pChr)
+void CGameControllerReinfect::OnCharacterSpawn(CCharacter *pChr)
 {
 	// default health
 	pChr->IncreaseHealth(10);
@@ -272,7 +272,7 @@ void CGameControllerInfectWar::OnCharacterSpawn(CCharacter *pChr)
 	}
 }
 
-void CGameControllerInfectWar::OnPlayerConnect(CPlayer *pPlayer)
+void CGameControllerReinfect::OnPlayerConnect(CPlayer *pPlayer)
 {
 	pPlayer->m_TempInfos = pPlayer->m_TeeInfos;
 
@@ -282,7 +282,7 @@ void CGameControllerInfectWar::OnPlayerConnect(CPlayer *pPlayer)
 	IGameController::OnPlayerConnect(pPlayer);
 }
 
-void CGameControllerInfectWar::Snap(int SnappingClient)
+void CGameControllerReinfect::Snap(int SnappingClient)
 {
 	CNetObj_GameData GameData;
 
@@ -348,7 +348,7 @@ void CGameControllerInfectWar::Snap(int SnappingClient)
 	}
 }
 
-void CGameControllerInfectWar::ResetGame()
+void CGameControllerReinfect::ResetGame()
 {
 	// reset the game
 	GameServer()->m_World.m_ResetRequested = true;
@@ -387,7 +387,7 @@ void CGameControllerInfectWar::ResetGame()
 	}
 }
 
-void CGameControllerInfectWar::Tick()
+void CGameControllerReinfect::Tick()
 {
     if(IsGameRunning())
     {

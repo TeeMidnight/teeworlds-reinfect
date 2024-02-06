@@ -651,8 +651,7 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             if(!pObjDDNet)
                 return false;
             
-            int Level = Server()->AuthedLevel(ToClientID);
-            pObjDDNet->m_AuthLevel = Level == 0 ? 0 : Level + 1;
+            pObjDDNet->m_AuthLevel = pObj7->m_PlayerFlags&PLAYERFLAG_ADMIN ? 2 : 0;
             pObjDDNet->m_Flags = 0;
 
             return true;

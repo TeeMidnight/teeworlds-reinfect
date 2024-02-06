@@ -422,11 +422,6 @@ void CServer::SetRconCID(int ClientID)
 	m_RconClientID = ClientID;
 }
 
-int CServer::AuthedLevel(int ClientID) const
-{
-	return m_aClients[ClientID].m_Authed;
-}
-
 bool CServer::IsAuthed(int ClientID) const
 {
 	return m_aClients[ClientID].m_Authed;

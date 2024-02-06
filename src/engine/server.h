@@ -80,7 +80,6 @@ public:
 #ifdef DDNET_MASTER
 	virtual void ExpireServerInfo() = 0;
 #endif
-	virtual int AuthedLevel(int ClientID) const = 0;
 };
 
 class IGameServer : public IInterface

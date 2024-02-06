@@ -9,6 +9,8 @@ class CGameControllerReinfect : public IGameController
     int m_NumNeedInfects;
 public:
     CGameControllerReinfect(CGameContext *pGameServer);
+    
+    bool IsInfect(int ClientID) const;
 
     void InfectPlayer(int ClientID, bool Chat = false);
     void ChooseInfects();

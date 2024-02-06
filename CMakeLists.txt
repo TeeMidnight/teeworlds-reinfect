@@ -78,7 +78,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   src/game/version.h
 )
 
-set(SERVER_EXECUTABLE reinfect-Server CACHE STRING "Name of the built server executable")
+set(SERVER_EXECUTABLE Reinfect-Server CACHE STRING "Name of the built server executable")
 
 ########################################################################
 # Compiler flags

@@ -55,17 +55,26 @@ CGameControllerReinfect::CGameControllerReinfect(CGameContext *pGameServer) :
 	s_InfectInfo.m_UseCustomColor = true;
 	s_InfectInfo.m_ColorBody = HSLA_to_int(58, 255, 0);
 	s_InfectInfo.m_ColorFeet = HSLA_to_int(0, 255, 134);
+
+	mem_zero(m_Infects, sizeof(m_Infects));
+}
+
+bool CGameControllerReinfect::IsInfect(int ClientID) const
+{
+	if(ClientID < 0 || ClientID > MAX_CLIENTS)
+		return false;
+	return m_Infects[ClientID];
 }
 
 void CGameControllerReinfect::InfectPlayer(int ClientID, bool Chat)
 {
-	if(m_Infects[ClientID])
-		return;
 	if(!Server()->ClientIngame(ClientID))
 		return;
 	if(!GameServer()->m_apPlayers[ClientID])
 		return;
 	if(GameServer()->m_apPlayers[ClientID]->GetTeam() == TEAM_SPECTATORS)
+		return;
+	if(IsInfect(ClientID))
 		return;
 
 	m_Infects[ClientID] = true;
@@ -113,7 +122,7 @@ void CGameControllerReinfect::ChooseInfects()
 		if(GameServer()->m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS)
 			continue;
 
-		if(m_Infects[i])
+		if(IsInfect(i))
 			Infects ++;
 		else
 			vHumansID.push_back(i);
@@ -156,7 +165,7 @@ bool CGameControllerReinfect::DoWincheckMatch()
 		{
 			if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS)
 			{
-                if(!m_Infects[i])
+                if(!IsInfect(i))
                     GameServer()->m_apPlayers[i]->m_Score += 5;
                 
                 GameServer()->SendChat(-1, CHAT_WHISPER, i, Localize(Server()->GetClientLanguage(i), "We're safe... Temporarily"));
@@ -172,7 +181,7 @@ bool CGameControllerReinfect::DoWincheckMatch()
 		int AlivePlayerCount = 0;
 		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
-			if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS && !m_Infects[i])
+			if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS && !IsInfect(i))
 			{
 				++AlivePlayerCount;
 			}
@@ -217,16 +226,16 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 		pVictim->GetPlayer()->m_Score--; // suicide or world
 	else
 	{
-		if(m_Infects[pVictim->GetPlayer()->GetCID()] == m_Infects[pKiller->GetCID()])
+		if(IsInfect(pVictim->GetPlayer()->GetCID()) == IsInfect(pKiller->GetCID()))
 			pKiller->m_Score--; // teamkill
 		else
-			pKiller->m_Score += m_Infects[pKiller->GetCID()] ? 3 : 1; // normal kill
+			pKiller->m_Score += IsInfect(pKiller->GetCID()) ? 3 : 1; // normal kill
 	}
 
 	if(Weapon == WEAPON_SELF)
 		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()*3.0f;
 
-	if(!m_Infects[pVictim->GetPlayer()->GetCID()])
+	if(!IsInfect(pVictim->GetPlayer()->GetCID()))
 	{
 		InfectPlayer(pVictim->GetPlayer()->GetCID());
 		return 1; // infect
@@ -260,7 +269,7 @@ void CGameControllerReinfect::OnCharacterSpawn(CCharacter *pChr)
 	pChr->IncreaseHealth(10);
 
 	// give default weapons
-	if(!m_Infects[pChr->GetPlayer()->GetCID()])
+	if(!IsInfect(pChr->GetPlayer()->GetCID()))
 	{
 		pChr->GiveWeapon(WEAPON_GUN, 5); // give a full gun
 		pChr->GiveWeapon(WEAPON_SHOTGUN, 1); // give a shotgun, but only 1 fire
@@ -360,10 +369,7 @@ void CGameControllerReinfect::ResetGame()
 
 	CheckGameInfo();
 
-	for(int i = 0; i < MAX_CLIENTS; i ++)
-	{
-		m_Infects[i] = false;
-	}
+	mem_zero(m_Infects, sizeof(m_Infects));
 
 	for(int i = 0; i < MAX_CLIENTS; i ++)
 	{

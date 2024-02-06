@@ -4,6 +4,8 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include <game/server/gamemodes/reinfect.h>
+
 #include "character.h"
 #include "pickup.h"
 
@@ -45,6 +47,9 @@ void CPickup::Tick()
 	CCharacter *pChr = (CCharacter *)GameWorld()->ClosestEntity(m_Pos, 20.0f, CGameWorld::ENTTYPE_CHARACTER, 0);
 	if(pChr && pChr->IsAlive())
 	{
+		if(((CGameControllerReinfect *) GameServer()->m_pController)->IsInfect(pChr->GetPlayer()->GetCID()))
+			return;
+
 		// player picked us up, is someone was hooking us, let them go
 		bool Picked = false;
 		switch (m_Type)

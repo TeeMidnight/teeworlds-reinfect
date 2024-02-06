@@ -644,6 +644,7 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_Local = (ClientID == ToClientID) ? 1 : 0;
             pObj6->m_Score = pObj7->m_Score;
             pObj6->m_Team = ((CPlayer *) pSnapClass)->m_DeadSpecMode ? protocol6::TEAM_SPECTATORS : ((CPlayer *) pSnapClass)->GetTeam();
+            pObj6->m_Team = ((CPlayer *) pSnapClass)->m_DeadSpecMode ? protocol6::TEAM_SPECTATORS : (((CPlayer *) pSnapClass)->GetTeam() == TEAM_SPECTATORS ? TEAM_SPECTATORS : 0);
 
             if(!Config()->m_SvDDNetSnap)
                 return true;
@@ -679,17 +680,15 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
 	        float a = 3 * 3.14159f / 2 + Angle;
             float s = a-pi/3;
             float e = a+pi/3;
-            ID = ((CEventHandler *) pSnapClass)->NumEvents();
-            for(int i = 0; i < pEvent7->m_ArmorAmount + pEvent7->m_HealthAmount; i++, ID++)
+            for(int i = 0; i < pEvent7->m_ArmorAmount + pEvent7->m_HealthAmount; i++)
             {
-                if(ID >= MAX_EVENTS)
-                    break;
-
                 float f = mix(s, e, float(i+1)/float(pEvent7->m_ArmorAmount + pEvent7->m_HealthAmount+2));
-                protocol6::CNetEvent_DamageInd *pEvent6 = static_cast<protocol6::CNetEvent_DamageInd *>(Server()->SnapNewItem(protocol6::NETEVENTTYPE_DAMAGEIND, ID, sizeof(protocol6::CNetEvent_DamageInd)));
+                protocol6::CNetEvent_DamageInd *pEvent6 = static_cast<protocol6::CNetEvent_DamageInd *>(Server()->SnapNewItem(protocol6::NETEVENTTYPE_DAMAGEIND, m_EventID, sizeof(protocol6::CNetEvent_DamageInd)));
                 pEvent6->m_X = pEvent7->m_X;
                 pEvent6->m_Y = pEvent7->m_Y;
                 pEvent6->m_Angle = (int)(f*256.0f);
+                
+                m_EventID ++;
 		    }
             return true;
         }
@@ -1369,6 +1368,11 @@ void CNetConverter::ResetSnapItemsEx()
 {
     m_NumSnapItemsEx = 0;
     mem_zero(m_SnapItemEx, sizeof(m_SnapItemEx));
+}
+
+void CNetConverter::ResetEventID()
+{
+    m_EventID = MAX_EVENTS;
 }
 
 void CNetConverter::SnapItemUuid(int ClientID)

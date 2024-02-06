@@ -899,6 +899,7 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
         case NETMSGTYPE_SV_SERVERSETTINGS:
         {
             // TODO: add message "Team were lock"
+            break;
         }
         case NETMSGTYPE_SV_CLIENTINFO:
         {

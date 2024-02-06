@@ -78,7 +78,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   src/game/version.h
 )
 
-set(SERVER_EXECUTABLE teeworlds_srv CACHE STRING "Name of the built server executable")
+set(SERVER_EXECUTABLE InfectWar-Server CACHE STRING "Name of the built server executable")
 
 ########################################################################
 # Compiler flags
@@ -608,18 +608,8 @@ set_glob(GAME_SERVER GLOB_RECURSE src/game/server
   gamecontext.h
   gamecontroller.cpp
   gamecontroller.h
-  gamemodes/ctf.cpp
-  gamemodes/ctf.h
-  gamemodes/dm.cpp
-  gamemodes/dm.h
-  gamemodes/lms.cpp
-  gamemodes/lms.h
-  gamemodes/lts.cpp
-  gamemodes/lts.h
-  gamemodes/mod.cpp
-  gamemodes/mod.h
-  gamemodes/tdm.cpp
-  gamemodes/tdm.h
+  gamemodes/infectwar.cpp
+  gamemodes/infectwar.h
   gameworld.cpp
   gameworld.h
   player.cpp

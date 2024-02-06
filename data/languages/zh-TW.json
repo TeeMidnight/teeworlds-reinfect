@@ -33,6 +33,10 @@
 		"value": "'%s' 用時%s完成"
 	},
 	{
+		"key": "'%s' has been a infect!",
+		"value": "'%s' 成爲了感染者!"
+	},
+	{
 		"key": "'%s' has left the game",
 		"value": "'%s' 離開了遊戲"
 	},
@@ -101,6 +105,10 @@
 		"value": "所有玩家被移入旁觀位"
 	},
 	{
+		"key": "Anytime, it's zombies time...",
+		"value": "任何時間, 都是殭屍時間"
+	},
+	{
 		"key": "Invalid spectator id used",
 		"value": "無效的旁觀ID"
 	},
@@ -159,6 +167,10 @@
 	{
 		"key": "Vote passed",
 		"value": "投票已通過"
+	},
+	{
+		"key": "We're safe... Temporarily",
+		"value": "我們安全了...暫時"
 	},
 	{
 		"key": "Whisper",

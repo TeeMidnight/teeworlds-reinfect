@@ -644,7 +644,6 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
             pObj6->m_Local = (ClientID == ToClientID) ? 1 : 0;
             pObj6->m_Score = pObj7->m_Score;
             pObj6->m_Team = ((CPlayer *) pSnapClass)->m_DeadSpecMode ? protocol6::TEAM_SPECTATORS : ((CPlayer *) pSnapClass)->GetTeam();
-            pObj6->m_Team = ((CPlayer *) pSnapClass)->m_DeadSpecMode ? protocol6::TEAM_SPECTATORS : (((CPlayer *) pSnapClass)->GetTeam() == TEAM_SPECTATORS ? TEAM_SPECTATORS : 0);
 
             if(!Config()->m_SvDDNetSnap)
                 return true;

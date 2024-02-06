@@ -17,6 +17,7 @@
 */
 class IGameController
 {
+protected:
 	class CGameContext *m_pGameServer;
 	class CConfig *m_pConfig;
 	class IServer *m_pServer;
@@ -61,7 +62,7 @@ class IGameController
 	virtual bool DoWincheckMatch();		// returns true when the match is over
 	virtual void DoWincheckRound() {}
 	bool HasEnoughPlayers() const { return (IsTeamplay() && m_aTeamSize[TEAM_RED] > 0 && m_aTeamSize[TEAM_BLUE] > 0) || (!IsTeamplay() && m_aTeamSize[TEAM_RED] > 1); }
-	void ResetGame();
+	virtual void ResetGame();
 	void SetGameState(EGameState GameState, int Timer=0);
 	void StartMatch();
 	void StartRound();
@@ -202,7 +203,7 @@ public:
 
 	// info
 	void CheckGameInfo();
-	bool IsFriendlyFire(int ClientID1, int ClientID2) const;
+	virtual bool IsFriendlyFire(int ClientID1, int ClientID2) const;
 	bool IsFriendlyTeamFire(int Team1, int Team2) const;
 	bool IsGamePaused() const { return m_GameState == IGS_GAME_PAUSED || m_GameState == IGS_START_COUNTDOWN; }
 	bool IsGameRunning() const { return m_GameState == IGS_GAME_RUNNING; }

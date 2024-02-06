@@ -627,6 +627,7 @@ container.animations.Add(anim)
 weapon = WeaponSpec(container, "hammer")
 weapon.firedelay.Set(125)
 weapon.damage.Set(3)
+weapon.damage.Set(12) # infectwar
 weapon.visual_size.Set(96)
 weapon.offsetx.Set(4)
 weapon.offsety.Set(-20)
@@ -635,8 +636,12 @@ container.weapons.id.Add(weapon)
 
 weapon = WeaponSpec(container, "gun")
 weapon.firedelay.Set(125)
+weapon.firedelay.Set(1000) # infectwar
 weapon.damage.Set(1)
+weapon.damage.Set(3) # infectwar
+weapon.maxammo.Set(5) # infectwar
 weapon.ammoregentime.Set(500)
+weapon.ammoregentime.Set(0) # infectwar
 weapon.visual_size.Set(64)
 weapon.offsetx.Set(32)
 weapon.offsety.Set(0)
@@ -647,7 +652,10 @@ container.weapons.id.Add(weapon)
 
 weapon = WeaponSpec(container, "shotgun")
 weapon.firedelay.Set(500)
+weapon.firedelay.Set(1250) #infectwar
 weapon.damage.Set(1)
+weapon.damage.Set(2) # infectwar
+weapon.maxammo.Set(2) # infectwar
 weapon.visual_size.Set(96)
 weapon.offsetx.Set(24)
 weapon.offsety.Set(-2)
@@ -658,7 +666,10 @@ container.weapons.id.Add(weapon)
 
 weapon = WeaponSpec(container, "grenade")
 weapon.firedelay.Set(500) # TODO: fix this
+weapon.firedelay.Set(2000) #infectwar
 weapon.damage.Set(6)
+weapon.damage.Set(8)
+weapon.maxammo.Set(1) # infectwar
 weapon.visual_size.Set(96)
 weapon.offsetx.Set(24)
 weapon.offsety.Set(-2)
@@ -667,7 +678,10 @@ container.weapons.id.Add(weapon)
 
 weapon = WeaponSpec(container, "laser")
 weapon.firedelay.Set(800)
+weapon.firedelay.Set(2000) # infectwar
 weapon.damage.Set(5)
+weapon.damage.Set(10) # infectwar
+weapon.maxammo.Set(1) # infectwar
 weapon.visual_size.Set(92)
 weapon.offsetx.Set(24)
 weapon.offsety.Set(-2)

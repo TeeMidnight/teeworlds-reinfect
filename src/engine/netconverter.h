@@ -23,6 +23,7 @@ public:
 	virtual void Init(class CGameContext *pGameServer) = 0;
 	virtual void ResetChatTick() = 0;
 	virtual void ResetSnapItemsEx() = 0;
+	virtual void ResetEventID() = 0;
 	virtual void SnapItemUuid(int ClientID) = 0;
 };
 

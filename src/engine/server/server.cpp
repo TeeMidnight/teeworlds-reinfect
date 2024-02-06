@@ -646,6 +646,8 @@ void CServer::DoSnapshot()
 			if(m_aClients[i].m_Protocol == NETPROTOCOL_SIX)
 				NetConverter()->SnapItemUuid(i);
 
+			NetConverter()->ResetEventID();
+
 			GameServer()->OnSnap(i);
 
 			// finish snapshot

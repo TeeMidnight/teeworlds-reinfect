@@ -27,6 +27,7 @@ private:
     int64 m_aChatTick[MAX_CLIENTS];
     CUuid m_SnapItemEx[64];
     int m_NumSnapItemsEx;
+    int m_EventID;
 
 public:
     CNetConverter(IServer *pServer, class CConfig *pConfig);
@@ -41,6 +42,7 @@ public:
 	int SendSystemMsgConvert(CMsgPacker *pMsg, int Flags, int ToClientID, int Depth = 0) override;
     void ResetChatTick() override;
     void ResetSnapItemsEx() override;
+    void ResetEventID() override;
     void SnapItemUuid(int ClientID) override;
 };
 

@@ -214,18 +214,18 @@ public:
 	const char *GetGameType() const { return m_pGameType; }
 
 	// map
-	void ChangeMap(const char *pToMap);
+	virtual void ChangeMap(const char *pToMap);
 
 	//spawn
-	bool CanSpawn(int Team, vec2 *pPos) const;
+	virtual bool CanSpawn(int Team, vec2 *pPos) const;
 	bool GetStartRespawnState() const;
 
 	// team
-	bool CanJoinTeam(int Team, int NotThisID) const;
-	bool CanChangeTeam(CPlayer *pPplayer, int JoinTeam) const;
+	virtual bool CanJoinTeam(int Team, int NotThisID) const;
+	virtual bool CanChangeTeam(CPlayer *pPplayer, int JoinTeam) const;
 
-	void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg=true);
-	void ForceTeamBalance() { if(!(m_GameFlags&GAMEFLAG_SURVIVAL)) DoTeamBalance(); }
+	virtual void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg=true);
+	virtual void ForceTeamBalance() { if(!(m_GameFlags&GAMEFLAG_SURVIVAL)) DoTeamBalance(); }
 
 	int GetRealPlayerNum() const { return m_aTeamSize[TEAM_RED]+m_aTeamSize[TEAM_BLUE]; }
 	int GetStartTeam();

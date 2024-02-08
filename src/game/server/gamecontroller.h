@@ -170,7 +170,7 @@ public:
 	virtual void OnPlayerDisconnect(class CPlayer *pPlayer);
 	virtual void OnPlayerInfoChange(class CPlayer *pPlayer);
 	virtual void OnPlayerReadyChange(class CPlayer *pPlayer);
-	void OnPlayerCommand(class CPlayer *pPlayer, const char *pCommandName, const char *pCommandArgs);
+	virtual void OnPlayerCommand(class CPlayer *pPlayer, const char *pCommandName, const char *pCommandArgs) {};
 
 	void OnReset();
 

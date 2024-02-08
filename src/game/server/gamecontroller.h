@@ -227,6 +227,8 @@ public:
 	virtual void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg=true);
 	virtual void ForceTeamBalance() { if(!(m_GameFlags&GAMEFLAG_SURVIVAL)) DoTeamBalance(); }
 
+	virtual bool PlayerPickable(int ClientID) { return true; }
+
 	int GetRealPlayerNum() const { return m_aTeamSize[TEAM_RED]+m_aTeamSize[TEAM_BLUE]; }
 	int GetStartTeam();
 

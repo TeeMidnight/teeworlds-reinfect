@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <generated/server_data.h>
 #include <game/server/gamecontext.h>
+#include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 
 #include "character.h"
@@ -43,7 +44,7 @@ void CPickup::Tick()
 	}
 	// Check if a player intersected us
 	CCharacter *pChr = (CCharacter *)GameWorld()->ClosestEntity(m_Pos, 20.0f, CGameWorld::ENTTYPE_CHARACTER, 0);
-	if(pChr && pChr->IsAlive())
+	if(pChr && pChr->IsAlive() && GameServer()->m_pController->PlayerPickable(pChr->GetPlayer()->GetCID()))
 	{
 		// player picked us up, is someone was hooking us, let them go
 		bool Picked = false;

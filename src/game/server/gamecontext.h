@@ -203,7 +203,7 @@ public:
 	virtual const char *NetVersionHashUsed() const;
 	virtual const char *NetVersionHashReal() const;
 
-	void UpdatePlayerSkin(int ClientID, CTeeInfo Skin);
+	void UpdatePlayerSkin(int ClientID, class CTeeInfo Skin);
 
 #ifdef DDNET_MASTER
 	void OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID) override;

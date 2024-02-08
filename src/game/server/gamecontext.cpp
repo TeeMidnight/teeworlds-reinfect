@@ -1885,6 +1885,26 @@ const char *CGameContext::NetVersionHashReal() const { return GAME_NETVERSION_HA
 
 IGameServer *CreateGameServer() { return new CGameContext; }
 
+void CGameContext::UpdatePlayerSkin(int ClientID, CTeeInfo Skin)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+	if(!m_apPlayers[ClientID])
+		return;
+	if(Skin == m_apPlayers[ClientID]->m_TeeInfos)
+		return;
+
+	mem_copy(&m_apPlayers[ClientID]->m_TeeInfos, &Skin, sizeof(m_apPlayers[ClientID]->m_TeeInfos));
+
+	// update all clients
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		if(!m_apPlayers[i] || (!Server()->ClientIngame(i) && !m_apPlayers[i]->IsDummy()) || Server()->GetClientVersion(i) < MIN_SKINCHANGE_CLIENTVERSION)
+			continue;
+
+		SendSkinChange(ClientID, i);
+	}
+}
 
 #ifdef DDNET_MASTER
 

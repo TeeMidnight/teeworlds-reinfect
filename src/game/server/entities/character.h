@@ -75,17 +75,16 @@ private:
 
 	struct WeaponStat
 	{
+		int m_ReloadTimer;
 		int m_AmmoRegenStart;
 		int m_Ammo;
 		bool m_Got;
-
 	} m_aWeapons[NUM_WEAPONS];
 
 	int m_ActiveWeapon;
 	int m_LastWeapon;
 	int m_QueuedWeapon;
 
-	int m_ReloadTimer;
 	int m_AttackTick;
 
 	int m_EmoteType;

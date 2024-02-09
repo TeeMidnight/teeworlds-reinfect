@@ -197,7 +197,7 @@ void CCharacter::HandleNinja()
 void CCharacter::DoWeaponSwitch()
 {
 	// make sure we can switch
-	if(m_ReloadTimer != 0 || m_QueuedWeapon == -1 || m_aWeapons[WEAPON_NINJA].m_Got)
+	if(m_QueuedWeapon == -1 || m_aWeapons[WEAPON_NINJA].m_Got)
 		return;
 
 	// switch Weapon
@@ -247,7 +247,7 @@ void CCharacter::HandleWeaponSwitch()
 
 void CCharacter::FireWeapon()
 {
-	if(m_ReloadTimer != 0)
+	if(m_aWeapons[m_ActiveWeapon].m_ReloadTimer != 0)
 		return;
 
 	DoWeaponSwitch();
@@ -273,7 +273,7 @@ void CCharacter::FireWeapon()
 	if(!m_aWeapons[m_ActiveWeapon].m_Ammo)
 	{
 		// 125ms is a magical limit of how fast a human can click
-		m_ReloadTimer = 125 * Server()->TickSpeed() / 1000;
+		m_aWeapons[m_ActiveWeapon].m_ReloadTimer = 125 * Server()->TickSpeed() / 1000;
 		if(m_LastNoAmmoSound+Server()->TickSpeed() <= Server()->Tick())
 		{
 			GameServer()->CreateSound(m_Pos, SOUND_WEAPON_NOAMMO);
@@ -328,7 +328,7 @@ void CCharacter::FireWeapon()
 
 			// if we Hit anything, we have to wait for the reload
 			if(Hits)
-				m_ReloadTimer = Server()->TickSpeed()/3;
+				m_aWeapons[WEAPON_HAMMER].m_ReloadTimer = Server()->TickSpeed()/3;
 
 		} break;
 
@@ -402,8 +402,8 @@ void CCharacter::FireWeapon()
 	if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0) // -1 == unlimited
 		m_aWeapons[m_ActiveWeapon].m_Ammo--;
 
-	if(!m_ReloadTimer)
-		m_ReloadTimer = g_pData->m_Weapons.m_aId[m_ActiveWeapon].m_Firedelay * Server()->TickSpeed() / 1000;
+	if(!m_aWeapons[m_ActiveWeapon].m_ReloadTimer)
+		m_aWeapons[m_ActiveWeapon].m_ReloadTimer = g_pData->m_Weapons.m_aId[m_ActiveWeapon].m_Firedelay * Server()->TickSpeed() / 1000;
 }
 
 void CCharacter::HandleWeapons()
@@ -412,9 +412,9 @@ void CCharacter::HandleWeapons()
 	HandleNinja();
 
 	// check reload timer
-	if(m_ReloadTimer)
+	if(m_aWeapons[m_ActiveWeapon].m_ReloadTimer)
 	{
-		m_ReloadTimer--;
+		m_aWeapons[m_ActiveWeapon].m_ReloadTimer--;
 		return;
 	}
 
@@ -426,7 +426,7 @@ void CCharacter::HandleWeapons()
 	if(AmmoRegenTime && m_aWeapons[m_ActiveWeapon].m_Ammo >= 0)
 	{
 		// If equipped and not active, regen ammo?
-		if(m_ReloadTimer <= 0)
+		if(m_aWeapons[m_ActiveWeapon].m_ReloadTimer <= 0)
 		{
 			if(m_aWeapons[m_ActiveWeapon].m_AmmoRegenStart < 0)
 				m_aWeapons[m_ActiveWeapon].m_AmmoRegenStart = Server()->Tick();

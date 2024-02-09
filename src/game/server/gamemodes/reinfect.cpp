@@ -240,7 +240,8 @@ bool CGameControllerReinfect::OnEntity(int Index, vec2 Pos)
 
 	if(Type != -1)
 	{
-		new CPickup(&GameServer()->m_World, Type, Pos);
+		CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, Pos);
+		pPickup->SetOnetime(true);
 		return true;
 	}
 

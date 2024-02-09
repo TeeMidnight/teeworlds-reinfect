@@ -270,9 +270,7 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 	// do scoreing
 	if(!pKiller || Weapon == WEAPON_GAME)
 		return 0;
-	if(pKiller == pVictim->GetPlayer())
-		return 0;
-	else
+	if(pKiller != pVictim->GetPlayer())
 	{
 		if(IsInfect(pVictim->GetPlayer()->GetCID()) == IsInfect(pKiller->GetCID()))
 			pKiller->m_Score--; // teamkill

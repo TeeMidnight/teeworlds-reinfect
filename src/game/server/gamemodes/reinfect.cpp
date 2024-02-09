@@ -295,7 +295,7 @@ void CGameControllerReinfect::OnPlayerInfoChange(CPlayer *pPlayer)
 {
 	if(!IsInfect(pPlayer->GetCID()))
 	{
-		GameServer()->UpdatePlayerSkin(pPlayer, pPlayer->m_TempInfos);
+		GameServer()->UpdatePlayerSkin(pPlayer->GetCID(), pPlayer->m_TempInfos);
 	}
 }
 

@@ -1137,6 +1137,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(pPlayer->m_LastChangeInfoTick && pPlayer->m_LastChangeInfoTick+Server()->TickSpeed()*5 > Server()->Tick())
 				return;
 
+			return; // reinfect
+
 			pPlayer->m_LastChangeInfoTick = Server()->Tick();
 			CNetMsg_Cl_SkinChange *pMsg = (CNetMsg_Cl_SkinChange *)pRawMsg;
 

@@ -291,6 +291,14 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 	return 0;
 }
 
+void CGameControllerReinfect::OnPlayerInfoChange(CPlayer *pPlayer)
+{
+	if(!IsInfect(pPlayer->GetCID()))
+	{
+		UpdatePlayerSkin(pPlayer, pPlayer->m_TempInfos);
+	}
+}
+
 void CGameControllerReinfect::OnCharacterSpawn(CCharacter *pChr)
 {
 	// default health

@@ -22,6 +22,7 @@ public:
     bool IsFriendlyFire(int ClientID1, int ClientID2) const override;
     int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
 
+    void OnPlayerInfoChange(class CPlayer *pPlayer) override;
 	void OnCharacterSpawn(class CCharacter *pChr) override;
 	void OnPlayerConnect(class CPlayer *pPlayer) override;
     void Snap(int SnappingClient) override;

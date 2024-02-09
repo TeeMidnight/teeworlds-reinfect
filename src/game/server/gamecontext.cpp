@@ -1137,20 +1137,19 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(pPlayer->m_LastChangeInfoTick && pPlayer->m_LastChangeInfoTick+Server()->TickSpeed()*5 > Server()->Tick())
 				return;
 
-			return; // reinfect
-
 			pPlayer->m_LastChangeInfoTick = Server()->Tick();
 			CNetMsg_Cl_SkinChange *pMsg = (CNetMsg_Cl_SkinChange *)pRawMsg;
 
 			for(int p = 0; p < NUM_SKINPARTS; p++)
 			{
-				str_utf8_copy_num(pPlayer->m_TeeInfos.m_apSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_apSkinPartNames[p]), MAX_SKIN_LENGTH);
-				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
-				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
+				str_utf8_copy_num(pPlayer->m_TempInfos.m_apSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_apSkinPartNames[p]), MAX_SKIN_LENGTH);
+				pPlayer->m_TempInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
+				pPlayer->m_TempInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
 			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SEVEN)
-				pPlayer->m_TeeInfos.FromSeven();
+				pPlayer->m_TempInfos.FromSeven();
 
+			/*
 			// update all clients
 			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
@@ -1162,6 +1161,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 #ifdef DDNET_MASTER
 			Server()->ExpireServerInfo();
 #endif
+			*/
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 		}

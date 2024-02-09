@@ -5,8 +5,6 @@
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 
-#include <game/server/gamemodes/reinfect.h>
-
 #include "character.h"
 #include "pickup.h"
 

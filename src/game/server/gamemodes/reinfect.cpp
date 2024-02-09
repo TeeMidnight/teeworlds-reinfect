@@ -293,7 +293,7 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 
 void CGameControllerReinfect::OnPlayerInfoChange(CPlayer *pPlayer)
 {
-	if(!IsInfect(pPlayer->GetCID()))
+	if(!IsInfect(pPlayer->GetCID()) && pPlayer->m_IsReadyToEnter)
 	{
 		GameServer()->UpdatePlayerSkin(pPlayer->GetCID(), pPlayer->m_TempInfos);
 	}

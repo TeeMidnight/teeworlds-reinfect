@@ -271,7 +271,7 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 	if(!pKiller || Weapon == WEAPON_GAME)
 		return 0;
 	if(pKiller == pVictim->GetPlayer())
-		pVictim->GetPlayer()->m_Score--; // suicide or world
+		return 0;
 	else
 	{
 		if(IsInfect(pVictim->GetPlayer()->GetCID()) == IsInfect(pKiller->GetCID()))
@@ -290,25 +290,6 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 	}
 
 	return 0;
-}
-
-void CGameControllerReinfect::OnPlayerInfoChange(CPlayer *pPlayer)
-{
-	const int aTeamColors[2] = {65387, 10223467}; // Only for 0.6, We don't need care 0.7
-	if(IsTeamplay())
-	{
-		pPlayer->m_TeeInfos.m_UseCustomColor = 1;
-		if(pPlayer->GetTeam() >= TEAM_RED && pPlayer->GetTeam() <= TEAM_BLUE)
-		{
-			pPlayer->m_TeeInfos.m_ColorBody = aTeamColors[pPlayer->GetTeam()];
-			pPlayer->m_TeeInfos.m_ColorFeet = aTeamColors[pPlayer->GetTeam()];
-		}
-		else
-		{
-			pPlayer->m_TeeInfos.m_ColorBody = 12895054;
-			pPlayer->m_TeeInfos.m_ColorFeet = 12895054;
-		}
-	}
 }
 
 void CGameControllerReinfect::OnCharacterSpawn(CCharacter *pChr)

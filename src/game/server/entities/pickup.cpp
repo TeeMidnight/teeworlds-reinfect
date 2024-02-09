@@ -58,9 +58,6 @@ void CPickup::Tick()
 	CCharacter *pChr = (CCharacter *)GameWorld()->ClosestEntity(m_Pos, 20.0f, CGameWorld::ENTTYPE_CHARACTER, 0);
 	if(pChr && pChr->IsAlive() && GameServer()->m_pController->PlayerPickable(pChr->GetPlayer()->GetCID()))
 	{
-		if(((CGameControllerReinfect *) GameServer()->m_pController)->IsInfect(pChr->GetPlayer()->GetCID()))
-			return;
-
 		// player picked us up, is someone was hooking us, let them go
 		bool Picked = false;
 		switch (m_Type)

@@ -92,17 +92,7 @@ void CGameControllerReinfect::InfectPlayer(int ClientID, bool Chat)
 	bool Comp = GameServer()->m_apPlayers[ClientID]->m_TeeInfos == s_InfectInfo;
 	if(!Comp)
 	{
-		GameServer()->m_apPlayers[ClientID]->m_TeeInfos = s_InfectInfo;
-		// update all clients
-		for(int j = 0; j < MAX_CLIENTS; ++ j)
-		{
-			if(!GameServer()->m_apPlayers[j] || 
-				(!Server()->ClientIngame(j) && !GameServer()->m_apPlayers[j]->IsDummy()) || 
-					Server()->GetClientVersion(j) < CGameContext::MIN_SKINCHANGE_CLIENTVERSION)
-				continue;
-
-			GameServer()->SendSkinChange(ClientID, j);
-		}
+		GameServer()->UpdatePlayerSkin(ClientID, s_InfectInfo);
 	}
 
 	if(Chat)
@@ -255,6 +245,11 @@ bool CGameControllerReinfect::OnEntity(int Index, vec2 Pos)
 	}
 
 	return false;
+}
+
+bool CGameControllerReinfect::PlayerPickable(int ClientID)
+{
+	return !m_Infects[ClientID];
 }
 
 bool CGameControllerReinfect::IsFriendlyFire(int ClientID1, int ClientID2) const
@@ -428,20 +423,7 @@ void CGameControllerReinfect::ResetGame()
 	{
 		if(GameServer()->m_apPlayers[i])
 		{
-			if(GameServer()->m_apPlayers[i]->m_TeeInfos == GameServer()->m_apPlayers[i]->m_TempInfos)
-				continue;
-
-			GameServer()->m_apPlayers[i]->m_TeeInfos = GameServer()->m_apPlayers[i]->m_TempInfos;
-			// update all clients
-			for(int j = 0; j < MAX_CLIENTS; ++ j)
-			{
-				if(!GameServer()->m_apPlayers[j] || 
-					(!Server()->ClientIngame(j) && !GameServer()->m_apPlayers[j]->IsDummy()) || 
-						Server()->GetClientVersion(j) < CGameContext::MIN_SKINCHANGE_CLIENTVERSION)
-					continue;
-
-				GameServer()->SendSkinChange(i, j);
-			}
+			GameServer()->UpdatePlayerSkin(i, GameServer()->m_apPlayers[i]->m_TempInfos);
 		}
 	}
 }

@@ -13,10 +13,16 @@ CPickup::CPickup(CGameWorld *pGameWorld, int Type, vec2 Pos)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_PICKUP, Pos, PickupPhysSize)
 {
 	m_Type = Type;
+	m_Onetime = false;
 
 	Reset();
 
 	GameWorld()->InsertEntity(this);
+}
+
+void CPickup::SetOnetime(bool Onetime)
+{
+	m_Onetime = Onetime;
 }
 
 void CPickup::Reset()
@@ -25,10 +31,14 @@ void CPickup::Reset()
 		m_SpawnTick = Server()->Tick() + Server()->TickSpeed() * g_pData->m_aPickups[m_Type].m_Spawndelay;
 	else
 		m_SpawnTick = -1;
+	m_Picked = false;
 }
 
 void CPickup::Tick()
 {
+	if(m_Onetime && m_Picked)
+		return;
+
 	// wait for respawn
 	if(m_SpawnTick > 0)
 	{
@@ -97,6 +107,15 @@ void CPickup::Tick()
 						GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), WEAPON_LASER);
 				}
 				break;
+			case PICKUP_GUN:
+				if(pChr->GiveWeapon(WEAPON_GUN, g_pData->m_Weapons.m_aId[WEAPON_GUN].m_Maxammo))
+				{
+					Picked = true;
+					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
+					if(pChr->GetPlayer())
+						GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), WEAPON_GUN);
+				}
+				break;
 
 			case PICKUP_NINJA:
 				{
@@ -129,6 +148,9 @@ void CPickup::Tick()
 			int RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 			if(RespawnTime >= 0)
 				m_SpawnTick = Server()->Tick() + Server()->TickSpeed() * RespawnTime;
+
+			if(m_Onetime)
+				m_Picked = Picked;
 		}
 	}
 }
@@ -141,6 +163,9 @@ void CPickup::TickPaused()
 
 void CPickup::Snap(int SnappingClient)
 {
+	if(m_Onetime && m_Picked)
+		return;
+
 	if(m_SpawnTick != -1 || NetworkClipped(SnappingClient))
 		return;
 

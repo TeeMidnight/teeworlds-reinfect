@@ -1,8 +1,10 @@
+#include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
 
 #include <game/localization.h>
 
 #include <game/server/entities/character.h>
+#include <game/server/entities/pickup.h>
 
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
@@ -64,6 +66,11 @@ bool CGameControllerReinfect::IsInfect(int ClientID) const
 	if(ClientID < 0 || ClientID > MAX_CLIENTS)
 		return false;
 	return m_Infects[ClientID];
+}
+
+bool CGameControllerReinfect::IsInfection() const 
+{
+	return m_GameStartTick + Server()->TickSpeed() * TIMER_END * 1.5f <= Server()->Tick();
 }
 
 void CGameControllerReinfect::InfectPlayer(int ClientID, bool Chat)
@@ -204,6 +211,52 @@ bool CGameControllerReinfect::DoWincheckMatch()
 	return false;
 }
 
+bool CGameControllerReinfect::OnEntity(int Index, vec2 Pos)
+{
+	int Type = -1;
+	switch(Index)
+	{
+	case ENTITY_SPAWN:
+		m_aaSpawnPoints[0][m_aNumSpawnPoints[0]++] = Pos;
+		break;
+	case ENTITY_SPAWN_RED:
+		m_aaSpawnPoints[1][m_aNumSpawnPoints[1]++] = Pos;
+		break;
+	case ENTITY_SPAWN_BLUE:
+		m_aaSpawnPoints[2][m_aNumSpawnPoints[2]++] = Pos;
+		break;
+	case ENTITY_ARMOR_1:
+		Type = PICKUP_ARMOR;
+		break;
+	case ENTITY_HEALTH_1:
+		Type = PICKUP_HEALTH;
+		break;
+	case ENTITY_WEAPON_SHOTGUN:
+		Type = PICKUP_SHOTGUN;
+		break;
+	case ENTITY_WEAPON_GRENADE:
+		Type = PICKUP_GRENADE;
+		break;
+	case ENTITY_WEAPON_LASER:
+		Type = PICKUP_LASER;
+		break;
+	case ENTITY_WEAPON_GUN:
+		Type = PICKUP_GUN;
+		break;
+	case ENTITY_POWERUP_NINJA:
+		if(Config()->m_SvPowerups)
+			Type = PICKUP_NINJA;
+	}
+
+	if(Type != -1)
+	{
+		new CPickup(&GameServer()->m_World, Type, Pos);
+		return true;
+	}
+
+	return false;
+}
+
 bool CGameControllerReinfect::IsFriendlyFire(int ClientID1, int ClientID2) const
 {
 	if(ClientID1 < 0 || ClientID1 >= MAX_CLIENTS)
@@ -235,7 +288,7 @@ int CGameControllerReinfect::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 	if(Weapon == WEAPON_SELF)
 		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()*3.0f;
 
-	if(!IsInfect(pVictim->GetPlayer()->GetCID()))
+	if(!IsInfect(pVictim->GetPlayer()->GetCID()) && IsInfection())
 	{
 		InfectPlayer(pVictim->GetPlayer()->GetCID());
 		return 1; // infect
@@ -397,7 +450,7 @@ void CGameControllerReinfect::Tick()
 {
     if(IsGameRunning())
     {
-		if(m_GameStartTick + Server()->TickSpeed() * TIMER_END < Server()->Tick())
+		if(IsInfection())
 		{
 			ChooseInfects();
 		}

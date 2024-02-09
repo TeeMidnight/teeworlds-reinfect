@@ -11,11 +11,13 @@ public:
     CGameControllerReinfect(CGameContext *pGameServer);
     
     bool IsInfect(int ClientID) const;
+    bool IsInfection() const;
 
     void InfectPlayer(int ClientID, bool Chat = false);
     void ChooseInfects();
 
     bool DoWincheckMatch() override;
+    bool OnEntity(int Index, vec2 Pos) override;
     bool IsFriendlyFire(int ClientID1, int ClientID2) const override;
     int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
 

@@ -448,15 +448,16 @@ void CCharacter::HandleWeapons()
 	return;
 }
 
-bool CCharacter::GiveWeapon(int Weapon, int Ammo)
+int CCharacter::GiveWeapon(int Weapon, int Ammo)
 {
 	if(m_aWeapons[Weapon].m_Ammo < g_pData->m_Weapons.m_aId[Weapon].m_Maxammo || !m_aWeapons[Weapon].m_Got)
 	{
+		int OldAmmo = m_aWeapons[Weapon].m_Got ? m_aWeapons[Weapon].m_Ammo : 0;
 		m_aWeapons[Weapon].m_Got = true;
 		m_aWeapons[Weapon].m_Ammo = minimum(g_pData->m_Weapons.m_aId[Weapon].m_Maxammo, Ammo);
-		return true;
+		return Ammo - OldAmmo;
 	}
-	return false;
+	return 0;
 }
 
 void CCharacter::GiveNinja()

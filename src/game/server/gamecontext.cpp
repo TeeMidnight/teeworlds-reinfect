@@ -1965,7 +1965,7 @@ void CGameContext::OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID)
 
 	char aCSkinName[64];
 
-	CTeeInfo &TeeInfo = m_apPlayers[ID]->m_TeeInfos;
+	CTeeInfo &TeeInfo = m_apPlayers[ID]->m_TempInfos;
 
 	char aJsonSkin[400];
 	aJsonSkin[0] = '\0';

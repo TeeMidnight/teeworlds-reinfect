@@ -25,7 +25,6 @@ public:
     void OnPlayerInfoChange(class CPlayer *pPlayer) override;
 	void OnCharacterSpawn(class CCharacter *pChr) override;
 	void OnPlayerConnect(class CPlayer *pPlayer) override;
-    void Snap(int SnappingClient) override;
     void ResetGame() override;
     void Tick() override;
 };

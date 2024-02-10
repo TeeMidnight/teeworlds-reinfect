@@ -55,7 +55,7 @@ bool CWeaponHammer::Fire(CGameWorld *pGameworld, vec2 Pos, vec2 Direction, vec2 
         else
             Dir = vec2(0.f, -1.f);
 
-        if(pController->IsInfect(pTarget->GetPlayer()->GetCID() != pController->IsInfect(GetOwner())))
+        if(pController->IsInfect(pTarget->GetPlayer()->GetCID()) != pController->IsInfect(GetOwner()) || !pController->IsInfect(pTarget->GetPlayer()->GetCID()))
         {
             pTarget->TakeDamage(vec2(0.f, -1.f) + normalize(Dir + vec2(0.f, -1.1f)) * 10.0f, Dir*-1, 
                 Damage, GetOwner(), GetType());

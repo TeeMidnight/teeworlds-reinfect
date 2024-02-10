@@ -120,9 +120,18 @@ void CGameControllerReinfect::ChooseInfects()
 			continue;
 
 		if(IsInfect(i))
+		{
+			Infects ++; // infect
+		}
+		else if(!GameServer()->m_apPlayers[i]->GetCharacter())
+		{
+			InfectPlayer(i); // not spawn, infect
 			Infects ++;
-		else
-			vHumansID.push_back(i);
+		}
+		else 
+		{
+			vHumansID.push_back(i); // humans
+		}
 		Players ++;
 	}
 	int NeedInfects = m_NumNeedInfects;

@@ -615,6 +615,20 @@ set_glob(GAME_SERVER GLOB_RECURSE src/game/server
   player.h
   teeinfo.cpp
   teeinfo.h
+  weapon.h
+  weapons/grenade.cpp
+  weapons/grenade.h
+  weapons/gun.cpp
+  weapons/gun.h
+  weapons/hammer.cpp
+  weapons/hammer.h
+  weapons/laser.cpp
+  weapons/laser.h
+  weapons/ninja.cpp
+  weapons/ninja.h
+  weapons/shotgun.cpp
+  weapons/shotgun.h
+  weapons/vanilla.h
 )
 set(GAME_GENERATED_SERVER
   src/generated/server_data.cpp

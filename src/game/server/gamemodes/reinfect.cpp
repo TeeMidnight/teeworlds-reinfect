@@ -10,6 +10,8 @@
 #include <game/server/player.h>
 #include <game/server/teeinfo.h>
 
+#include <game/server/weapons/vanilla.h>
+
 #include <vector>
 
 #include "reinfect.h"
@@ -108,6 +110,7 @@ void CGameControllerReinfect::InfectPlayer(int ClientID, bool Chat)
 	}
 }
 
+// Must put this in CGameControllerReinfect::Tick!!!!
 void CGameControllerReinfect::ChooseInfects()
 {
 	int Infects = 0, Players = 0;
@@ -316,14 +319,14 @@ void CGameControllerReinfect::OnCharacterSpawn(CCharacter *pChr)
 	// give default weapons
 	if(!IsInfect(pChr->GetPlayer()->GetCID()))
 	{
-		pChr->GiveWeapon(WEAPON_GUN, 5); // give a full gun
-		pChr->GiveWeapon(WEAPON_SHOTGUN, 1); // give a shotgun, but only 1 fire
-		pChr->SetWeapon(WEAPON_SHOTGUN);
-	}else
-	{
-		pChr->GiveWeapon(WEAPON_HAMMER, -1);
-		pChr->SetWeapon(WEAPON_HAMMER);
+		pChr->GiveWeapon(WEAPON_GUN, new CWeaponGun(pChr->GetPlayer()->GetCID())); // give a full gun
+		IWeapon *pShotgun = new CWeaponShotgun(pChr->GetPlayer()->GetCID());
+		pShotgun->SetAmmo(1);
+		pChr->GiveWeapon(WEAPON_SHOTGUN, pShotgun); // give a shotgun, but only 1 fire
 	}
+	
+	pChr->GiveWeapon(WEAPON_HAMMER, new CWeaponHammer(pChr->GetPlayer()->GetCID())); // give a hammer
+	pChr->SetWeapon(WEAPON_HAMMER);
 }
 
 void CGameControllerReinfect::OnPlayerConnect(CPlayer *pPlayer)

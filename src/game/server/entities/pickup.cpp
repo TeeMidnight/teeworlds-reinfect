@@ -5,6 +5,8 @@
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 
+#include <game/server/weapons/vanilla.h>
+
 #include "character.h"
 #include "pickup.h"
 
@@ -58,6 +60,7 @@ void CPickup::Tick()
 	{
 		// player picked us up, is someone was hooking us, let them go
 		bool Picked = false;
+		IWeapon *pWeapon = nullptr;
 		switch (m_Type)
 		{
 			case PICKUP_HEALTH:
@@ -77,7 +80,8 @@ void CPickup::Tick()
 				break;
 
 			case PICKUP_GRENADE:
-				if(pChr->GiveWeapon(WEAPON_GRENADE, g_pData->m_Weapons.m_aId[WEAPON_GRENADE].m_Maxammo))
+				pWeapon = new CWeaponGrenade(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_GRENADE, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_GRENADE);
@@ -86,7 +90,8 @@ void CPickup::Tick()
 				}
 				break;
 			case PICKUP_SHOTGUN:
-				if(pChr->GiveWeapon(WEAPON_SHOTGUN, g_pData->m_Weapons.m_aId[WEAPON_SHOTGUN].m_Maxammo))
+				pWeapon = new CWeaponShotgun(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_SHOTGUN, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
@@ -95,7 +100,8 @@ void CPickup::Tick()
 				}
 				break;
 			case PICKUP_LASER:
-				if(pChr->GiveWeapon(WEAPON_LASER, g_pData->m_Weapons.m_aId[WEAPON_LASER].m_Maxammo))
+				pWeapon = new CWeaponLaser(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_LASER, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
@@ -104,7 +110,8 @@ void CPickup::Tick()
 				}
 				break;
 			case PICKUP_GUN:
-				if(pChr->GiveWeapon(WEAPON_GUN, g_pData->m_Weapons.m_aId[WEAPON_GUN].m_Maxammo))
+				pWeapon = new CWeaponGun(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_GUN, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
@@ -147,6 +154,9 @@ void CPickup::Tick()
 
 			if(m_Onetime)
 				m_Picked = Picked;
+		}else if(pWeapon)
+		{
+			delete pWeapon;
 		}
 	}
 }

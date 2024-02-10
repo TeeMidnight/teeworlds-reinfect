@@ -7,6 +7,7 @@
 
 #include <game/gamecore.h>
 #include <game/server/entity.h>
+#include <game/server/weapon.h>
 
 
 class CCharacter : public CEntity
@@ -55,7 +56,10 @@ public:
 	bool IncreaseHealth(int Amount);
 	bool IncreaseArmor(int Amount);
 
+	/*
 	int GiveWeapon(int Weapon, int Ammo);
+	*/
+	bool GiveWeapon(int Weapon, IWeapon *pWeapon);
 	void GiveNinja();
 
 	void SetEmote(int Emote, int Tick);
@@ -73,6 +77,7 @@ private:
 	CEntity *m_apHitObjects[MAX_CLIENTS];
 	int m_NumObjectsHit;
 
+	/*
 	struct WeaponStat
 	{
 		int m_ReloadTimer;
@@ -80,6 +85,8 @@ private:
 		int m_Ammo;
 		bool m_Got;
 	} m_aWeapons[NUM_WEAPONS];
+	*/
+	IWeapon *m_apWeapons[NUM_WEAPONS];
 
 	int m_ActiveWeapon;
 	int m_LastWeapon;
@@ -127,7 +134,10 @@ private:
 public:
 	CCharacterCore *Core() { return &m_Core; }
 	NinjaStat *NinjaStat() { return &m_Ninja; }
+	/*
 	WeaponStat *WeaponStat(int Weapon) { return &m_aWeapons[Weapon]; }
+	*/
+	IWeapon *Weapons(int Weapon) { return m_apWeapons[Weapon]; }
 };
 
 #endif

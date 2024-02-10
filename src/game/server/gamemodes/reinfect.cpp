@@ -330,7 +330,7 @@ void CGameControllerReinfect::OnPlayerConnect(CPlayer *pPlayer)
 {
 	pPlayer->m_TempInfos = pPlayer->m_TeeInfos;
 
-	if(m_GameStartTick + Server()->TickSpeed() * TIMER_END < Server()->Tick())
+	if(IsInfection())
 		InfectPlayer(pPlayer->GetCID());
 	
 	IGameController::OnPlayerConnect(pPlayer);

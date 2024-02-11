@@ -35,7 +35,7 @@ jobs:
             CFLAGS: /WX
             CXXFLAGS: /WX
             LDFLAGS: /WX
-
+    steps:
     - name: Prepare Linux
       if: contains(matrix.os, 'ubuntu')
       run: |

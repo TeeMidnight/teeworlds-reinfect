@@ -184,7 +184,7 @@ void CCharacter::HandleNinja()
 
 			// Hit a player, give him damage and stuffs...
 			GameServer()->CreateSound(aEnts[i]->m_Pos, SOUND_NINJA_HIT);
-			if(m_NumObjectsHit < MAX_PLAYERS)
+			if(m_NumObjectsHit < MAX_CLIENTS)
 				m_apHitObjects[m_NumObjectsHit++] = aEnts[i];
 
 			// set his velocity to fast upward (for now)
@@ -606,6 +606,20 @@ void CCharacter::TickDefered()
 		Die(m_pPlayer->GetCID(), WEAPON_WORLD);
 	}
 
+	int Events = m_TriggeredEvents;
+
+	for(int i = 0; i < MAX_CLIENTS; i ++)
+	{
+		if(Server()->ClientProtocol(i) == NETPROTOCOL_SIX)
+		{
+			if(Events&COREEVENTFLAG_GROUND_JUMP && i != m_pPlayer->GetCID()) GameServer()->CreateSound(m_Pos, SOUND_PLAYER_JUMP, CmaskOne(i));
+
+			if(Events&COREEVENTFLAG_HOOK_ATTACH_PLAYER) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_PLAYER, CmaskOne(i));
+			if(Events&COREEVENTFLAG_HOOK_ATTACH_GROUND && i != m_pPlayer->GetCID()) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_GROUND, CmaskOne(i));
+			if(Events&COREEVENTFLAG_HOOK_HIT_NOHOOK && i != m_pPlayer->GetCID()) GameServer()->CreateSound(m_Pos, SOUND_HOOK_NOATTACH, CmaskOne(i));
+		}
+	}
+
 	// update the m_SendCore if needed
 	{
 		CNetObj_Character Predicted;
@@ -808,22 +822,21 @@ void CCharacter::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	CNetObj_Character *pCharacter = static_cast<CNetObj_Character *>(Server()->SnapNewItem(NETOBJTYPE_CHARACTER, m_pPlayer->GetCID(), sizeof(CNetObj_Character)));
-	if(!pCharacter)
-		return;
+	CCharacterCore *pCore;
+	int Tick;
 
 	// write down the m_Core
 	if(!m_ReckoningTick || GameWorld()->m_Paused)
 	{
 		// no dead reckoning when paused because the client doesn't know
 		// how far to perform the reckoning
-		pCharacter->m_Tick = 0;
-		m_Core.Write(pCharacter);
+		Tick = 0;
+		pCore = &m_Core;
 	}
 	else
 	{
-		pCharacter->m_Tick = m_ReckoningTick;
-		m_SendCore.Write(pCharacter);
+		Tick = m_ReckoningTick;
+		pCore = &m_SendCore;
 	}
 
 	// set emote
@@ -832,34 +845,42 @@ void CCharacter::Snap(int SnappingClient)
 		SetEmote(EMOTE_NORMAL, -1);
 	}
 
-	pCharacter->m_Emote = m_EmoteType;
+	CNetObj_Character Character;
 
-	pCharacter->m_AmmoCount = 0;
-	pCharacter->m_Health = 0;
-	pCharacter->m_Armor = 0;
-	pCharacter->m_TriggeredEvents = m_TriggeredEvents;
+	pCore->Write(&Character);
 
-	pCharacter->m_Weapon = m_ActiveWeapon;
-	pCharacter->m_AttackTick = m_AttackTick;
+	Character.m_Tick = Tick;
+	Character.m_Emote = m_EmoteType;
 
-	pCharacter->m_Direction = m_Input.m_Direction;
+	Character.m_AmmoCount = 0;
+	Character.m_Health = 0;
+	Character.m_Armor = 0;
+	Character.m_TriggeredEvents = m_TriggeredEvents;
+
+	Character.m_Weapon = m_ActiveWeapon;
+	Character.m_AttackTick = m_AttackTick;
+
+	Character.m_Direction = m_Input.m_Direction;
 
 	if(m_pPlayer->GetCID() == SnappingClient || SnappingClient == -1 ||
 		(!Config()->m_SvStrictSpectateMode && m_pPlayer->GetCID() == GameServer()->m_apPlayers[SnappingClient]->GetSpectatorID()))
 	{
-		pCharacter->m_Health = m_Health;
-		pCharacter->m_Armor = m_Armor;
+		Character.m_Health = m_Health;
+		Character.m_Armor = m_Armor;
 		if(m_ActiveWeapon == WEAPON_NINJA)
-			pCharacter->m_AmmoCount = m_Ninja.m_ActivationTick + g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000;
+			Character.m_AmmoCount = m_Ninja.m_ActivationTick + g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000;
 		else if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0)
-			pCharacter->m_AmmoCount = m_aWeapons[m_ActiveWeapon].m_Ammo;
+			Character.m_AmmoCount = m_aWeapons[m_ActiveWeapon].m_Ammo;
 	}
 
-	if(pCharacter->m_Emote == EMOTE_NORMAL)
+	if(Character.m_Emote == EMOTE_NORMAL)
 	{
 		if(5 * Server()->TickSpeed() - ((Server()->Tick() - m_LastAction) % (5 * Server()->TickSpeed())) < 5)
-			pCharacter->m_Emote = EMOTE_BLINK;
+			Character.m_Emote = EMOTE_BLINK;
 	}
+	
+	if(!NetConverter()->SnapNewItemConvert(&Character, this, NETOBJTYPE_CHARACTER, m_pPlayer->GetCID(), sizeof(CNetObj_Character), SnappingClient))
+		return;
 }
 
 void CCharacter::PostSnap()

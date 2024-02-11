@@ -5,6 +5,7 @@
 
 #include <engine/console.h>
 #include <engine/server.h>
+#include <engine/netconverter.h>
 
 #include <game/commands.h>
 #include <game/layers.h>
@@ -40,6 +41,7 @@ class CGameContext : public IGameServer
 	class CConfig *m_pConfig;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	class INetConverter *m_pNetConverter;
 	CLayers m_Layers;
 	CCollision m_Collision;
 	CNetObjHandler m_NetObjHandler;
@@ -70,6 +72,9 @@ class CGameContext : public IGameServer
 	static void NewCommandHook(const CCommandManager::CCommand *pCommand, void *pContext);
 	static void RemoveCommandHook(const CCommandManager::CCommand *pCommand, void *pContext);
 
+	static void ComLanguage(IConsole::IResult *pResult, void *pContext);
+	static void ComWhisper(IConsole::IResult *pResult, void *pContext);
+
 	CGameContext(int Resetting);
 	void Construct(int Resetting);
 
@@ -79,6 +84,7 @@ public:
 	class CConfig *Config() { return m_pConfig; }
 	class IConsole *Console() { return m_pConsole; }
 	class IStorage *Storage() { return m_pStorage; }
+	class INetConverter *NetConverter() { return m_pNetConverter; }
 	CCollision *Collision() { return &m_Collision; }
 	CTuningParams *Tuning() { return &m_Tuning; }
 
@@ -193,9 +199,15 @@ public:
 
 	virtual const char *GameType() const;
 	virtual const char *Version() const;
-	virtual const char *NetVersion() const;
+	virtual const char *NetVersion(int Protocol) const;
 	virtual const char *NetVersionHashUsed() const;
 	virtual const char *NetVersionHashReal() const;
+
+	void UpdatePlayerSkin(int ClientID, class CTeeInfo Skin);
+
+#ifdef CONF_DDNETMASTER
+	void OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID) override;
+#endif
 };
 
 inline int64 CmaskAll() { return -1; }

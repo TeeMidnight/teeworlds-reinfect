@@ -8,6 +8,8 @@
 #include "snapshot.h"
 #include "compression.h"
 
+#include <generated/protocolglue.h>
+
 // CSnapshot
 
 const CSnapshotItem *CSnapshot::GetItem(int Index) const

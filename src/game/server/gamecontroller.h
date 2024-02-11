@@ -98,6 +98,7 @@ class IGameController
 
 protected:
 	CGameContext *GameServer() const { return m_pGameServer; }
+	class INetConverter *NetConverter() const;
 	CConfig *Config() const { return m_pConfig; }
 	IServer *Server() const { return m_pServer; }
 
@@ -169,7 +170,7 @@ public:
 	virtual void OnPlayerDisconnect(class CPlayer *pPlayer);
 	virtual void OnPlayerInfoChange(class CPlayer *pPlayer);
 	virtual void OnPlayerReadyChange(class CPlayer *pPlayer);
-	void OnPlayerCommand(class CPlayer *pPlayer, const char *pCommandName, const char *pCommandArgs);
+	virtual void OnPlayerCommand(class CPlayer *pPlayer, const char *pCommandName, const char *pCommandArgs) {};
 
 	void OnReset();
 
@@ -201,8 +202,8 @@ public:
 
 	// info
 	void CheckGameInfo();
-	bool IsFriendlyFire(int ClientID1, int ClientID2) const;
-	bool IsFriendlyTeamFire(int Team1, int Team2) const;
+	virtual bool IsFriendlyFire(int ClientID1, int ClientID2) const;
+	virtual bool IsFriendlyTeamFire(int Team1, int Team2) const;
 	bool IsGamePaused() const { return m_GameState == IGS_GAME_PAUSED || m_GameState == IGS_START_COUNTDOWN; }
 	bool IsGameRunning() const { return m_GameState == IGS_GAME_RUNNING; }
 	bool IsPlayerReadyMode() const;
@@ -213,23 +214,28 @@ public:
 	const char *GetGameType() const { return m_pGameType; }
 
 	// map
-	void ChangeMap(const char *pToMap);
+	virtual void ChangeMap(const char *pToMap);
 
 	//spawn
-	bool CanSpawn(int Team, vec2 *pPos) const;
+	virtual bool CanSpawn(int Team, vec2 *pPos) const;
 	bool GetStartRespawnState() const;
 
 	// team
-	bool CanJoinTeam(int Team, int NotThisID) const;
-	bool CanChangeTeam(CPlayer *pPplayer, int JoinTeam) const;
+	virtual bool CanJoinTeam(int Team, int NotThisID) const;
+	virtual bool CanChangeTeam(CPlayer *pPplayer, int JoinTeam) const;
 
-	void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg=true);
-	void ForceTeamBalance() { if(!(m_GameFlags&GAMEFLAG_SURVIVAL)) DoTeamBalance(); }
+	virtual void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg=true);
+	virtual void ForceTeamBalance() { if(!(m_GameFlags&GAMEFLAG_SURVIVAL)) DoTeamBalance(); }
+
+	virtual bool PlayerPickable(int ClientID) { return true; }
 
 	int GetRealPlayerNum() const { return m_aTeamSize[TEAM_RED]+m_aTeamSize[TEAM_BLUE]; }
 	int GetStartTeam();
 
-	//static void Com_Example(IConsole::IResult *pResult, void *pContext);
+	int GameFlags() const { return m_GameFlags; }
+	int MatchCount() const { return m_MatchCount; }
+	int TeamScore(int Team) const { return m_aTeamscore[Team]; }
+
 	virtual void RegisterChatCommands(CCommandManager *pManager);
 };
 

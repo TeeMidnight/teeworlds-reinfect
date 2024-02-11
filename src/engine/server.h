@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef ENGINE_SERVER_H
 #define ENGINE_SERVER_H
+
 #include "kernel.h"
 #include "message.h"
 
@@ -28,17 +29,21 @@ public:
 	virtual const char *ClientName(int ClientID) const = 0;
 	virtual const char *ClientClan(int ClientID) const = 0;
 	virtual int ClientCountry(int ClientID) const = 0;
+	virtual int ClientProtocol(int ClientID) const = 0;
 	virtual bool ClientIngame(int ClientID) const = 0;
+
 	virtual int GetClientInfo(int ClientID, CClientInfo *pInfo) const = 0;
 	virtual void GetClientAddr(int ClientID, char *pAddrStr, int Size) const = 0;
 	virtual int GetClientVersion(int ClientID) const = 0;
 
+	virtual int GetClientLanguage(int ClientID) const = 0;
+
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID) = 0;
 
 	template<class T>
-	int SendPackMsg(T *pMsg, int Flags, int ClientID)
+	int SendPackMsg(T *pMsg, int Flags, int ClientID, bool Convert = true)
 	{
-		CMsgPacker Packer(pMsg->MsgID(), false);
+		CMsgPacker Packer(pMsg->MsgID(), false, Convert);
 		if(pMsg->Pack(&Packer))
 			return -1;
 		return SendMsg(&Packer, Flags, ClientID);
@@ -48,6 +53,7 @@ public:
 	virtual void SetClientClan(int ClientID, char const *pClan) = 0;
 	virtual void SetClientCountry(int ClientID, int Country) = 0;
 	virtual void SetClientScore(int ClientID, int Score) = 0;
+	virtual void SetClientLanguage(int ClientID, int Language) = 0;
 
 	virtual int SnapNewID() = 0;
 	virtual void SnapFreeID(int ID) = 0;
@@ -68,6 +74,12 @@ public:
 
 	virtual void DemoRecorder_HandleAutoStart() = 0;
 	virtual bool DemoRecorder_IsRecording() = 0;
+
+	virtual void SendServerInfo(int ClientID) = 0;
+
+#ifdef CONF_DDNETMASTER
+	virtual void ExpireServerInfo() = 0;
+#endif
 };
 
 class IGameServer : public IInterface
@@ -99,11 +111,15 @@ public:
 
 	virtual const char *GameType() const = 0;
 	virtual const char *Version() const = 0;
-	virtual const char *NetVersion() const = 0;
+	virtual const char *NetVersion(int Protocol) const = 0;
 	virtual const char *NetVersionHashUsed() const = 0;
 	virtual const char *NetVersionHashReal() const = 0;
 
 	virtual bool TimeScore() const { return false; }
+
+#ifdef CONF_DDNETMASTER
+	virtual void OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID) = 0;
+#endif
 };
 
 extern IGameServer *CreateGameServer();

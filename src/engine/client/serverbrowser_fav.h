@@ -33,7 +33,7 @@ public:
 
 	struct CFavoriteLookup
 	{
-		class CHostLookup m_HostLookup;
+		class std::shared_ptr<CHostLookup> m_pHostLookup;
 		int m_FavoriteIndex;
 		int m_LookupCount;
 		bool m_Active;

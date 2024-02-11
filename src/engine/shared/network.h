@@ -3,6 +3,8 @@
 #ifndef ENGINE_SHARED_NETWORK_H
 #define ENGINE_SHARED_NETWORK_H
 
+#include <engine/netconverter.h>
+
 #include "ringbuffer.h"
 #include "huffman.h"
 
@@ -52,6 +54,9 @@ enum
 	NETSENDFLAG_VITAL=1,
 	NETSENDFLAG_CONNLESS=2,
 	NETSENDFLAG_FLUSH=4,
+	// for 0.6
+	NETSENDFLAG_EXTENDED = 8,
+	NETSENDFLAG_SIX = 128, // a check flag only for six connless
 
 	NETSTATE_OFFLINE=0,
 	NETSTATE_CONNECTING,
@@ -82,6 +87,9 @@ enum
 	NET_PACKETFLAG_RESEND=2,
 	NET_PACKETFLAG_COMPRESSION=4,
 	NET_PACKETFLAG_CONNLESS=8,
+
+	// FOR 0.6
+	NET_PACKETFLAG_EXTENDED = 1 << 6,
 
 	NET_MAX_PACKET_CHUNKS=256,
 
@@ -135,7 +143,7 @@ enum
 
 
 typedef int (*NETFUNC_DELCLIENT)(int ClientID, const char* pReason, void *pUser);
-typedef int (*NETFUNC_NEWCLIENT)(int ClientID, void *pUser);
+typedef int (*NETFUNC_NEWCLIENT)(int ClientID, void *pUser, int Protocol);
 
 typedef unsigned int TOKEN;
 
@@ -148,6 +156,7 @@ struct CNetChunk
 	int m_Flags;
 	int m_DataSize;
 	const void *m_pData;
+	unsigned char m_aExtraData[4];
 };
 
 class CNetChunkHeader
@@ -157,8 +166,8 @@ public:
 	int m_Size;
 	int m_Sequence;
 
-	unsigned char *Pack(unsigned char *pData);
-	unsigned char *Unpack(unsigned char *pData);
+	unsigned char *Pack(unsigned char *pData, int Split);
+	unsigned char *Unpack(unsigned char *pData, int Split);
 };
 
 class CNetChunkResend
@@ -183,6 +192,7 @@ public:
 	int m_NumChunks;
 	int m_DataSize;
 	unsigned char m_aChunkData[NET_MAX_PAYLOAD];
+	unsigned char m_aExtraData[4];
 };
 
 
@@ -212,6 +222,7 @@ public:
 	~CNetBase();
 	CConfig *Config() { return m_pConfig; }
 	class IEngine *Engine() { return m_pEngine; }
+	NETSOCKET *Socket() { return &m_Socket; }
 	int NetType() { return m_Socket.type; }
 	
 	void Init(NETSOCKET Socket, class CConfig *pConfig, class IConsole *pConsole, class IEngine *pEngine);
@@ -219,11 +230,12 @@ public:
 	void UpdateLogHandles();
 	void Wait(int Time);
 
-	void SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, const void *pExtra, int ExtraSize);
+	void SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, const void *pExtra, int ExtraSize, int Protocol);
 	void SendControlMsgWithToken(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, TOKEN MyToken, bool Extended);
 	void SendPacketConnless(const NETADDR *pAddr, TOKEN Token, TOKEN ResponseToken, const void *pData, int DataSize);
-	void SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket);
-	int UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketConstruct *pPacket);
+	void SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket, int Protocol);
+	int UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketConstruct *pPacket, int& Protocol, int *pSize);
+	int UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket, int& Protocol);
 };
 
 class CNetTokenManager
@@ -344,6 +356,8 @@ private:
 	NETSTATS m_Stats;
 	CNetBase *m_pNetBase;
 
+	int m_Protocol;
+
 	//
 	void Reset();
 	void ResetStats();
@@ -364,10 +378,12 @@ public:
 	void Disconnect(const char *pReason);
 
 	void SetToken(TOKEN Token);
+	void SetProtocol(int Protocol);
 
 	TOKEN Token() const { return m_Token; }
 	TOKEN PeerToken() const { return m_PeerToken; }
 	class CConfig *Config() { return m_pNetBase->Config(); }
+	int Protocol() const { return m_Protocol; }
 
 	int Update();
 	int Flush();
@@ -465,8 +481,11 @@ class CNetServer : public CNetBase
 
 	CNetTokenManager m_TokenManager;
 	CNetTokenCache m_TokenCache;
+	
+	unsigned char m_aSecurityTokenSeed[16];
 
 public:
+	int MaxClients() const { return m_MaxClients; }
 	//
 	bool Open(NETADDR BindAddr, class CConfig *pConfig, class IConsole *pConsole, class IEngine *pEngine, class CNetBan *pNetBan,
 		int MaxClients, int MaxClientsPerIP, NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
@@ -475,6 +494,7 @@ public:
 	// the token parameter is only used for connless packets
 	int Recv(CNetChunk *pChunk, TOKEN *pResponseToken = 0);
 	int Send(CNetChunk *pChunk, TOKEN Token = NET_TOKEN_NONE);
+	int SendConnlessSevenDown(CNetChunk *pChunk);
 	int Update();
 	void AddToken(const NETADDR *pAddr, TOKEN Token) { m_TokenCache.AddToken(pAddr, Token, 0); }
 
@@ -488,6 +508,8 @@ public:
 	//
 	void SetMaxClients(int MaxClients);
 	void SetMaxClientsPerIP(int MaxClientsPerIP);
+
+	TOKEN GetGlobalToken() const;
 };
 
 class CNetConsole

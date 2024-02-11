@@ -5,6 +5,9 @@
 #include "config.h"
 #include "network.h"
 
+#include "protocol6.h"
+
+const unsigned char SECURITY_TOKEN_MAGIC[4] = {'T', 'K', 'E', 'N'};
 
 void CNetConnection::ResetStats()
 {
@@ -24,6 +27,9 @@ void CNetConnection::Reset()
 	m_LastUpdateTime = 0;
 	m_Token = NET_TOKEN_NONE;
 	m_PeerToken = NET_TOKEN_NONE;
+
+	m_Protocol = NETPROTOCOL_UNKNOWN;
+
 	mem_zero(&m_PeerAddr, sizeof(m_PeerAddr));
 
 	m_Buffer.Init();
@@ -37,6 +43,14 @@ void CNetConnection::SetToken(TOKEN Token)
 		return;
 
 	m_Token = Token;
+}
+
+void CNetConnection::SetProtocol(int Protocol)
+{
+	if(State() != NET_CONNSTATE_OFFLINE)
+		return;
+	
+	m_Protocol = Protocol;
 }
 
 TOKEN CNetConnection::GenerateToken(const NETADDR *pPeerAddr)
@@ -93,7 +107,7 @@ int CNetConnection::Flush()
 	// send of the packets
 	m_Construct.m_Ack = m_Ack;
 	m_Construct.m_Token = m_PeerToken;
-	m_pNetBase->SendPacket(&m_PeerAddr, &m_Construct);
+	m_pNetBase->SendPacket(&m_PeerAddr, &m_Construct, Protocol());
 
 	// update send times
 	m_LastSendTime = time_get();
@@ -117,7 +131,7 @@ int CNetConnection::QueueChunkEx(int Flags, int DataSize, const void *pData, int
 	Header.m_Size = DataSize;
 	Header.m_Sequence = Sequence;
 	pChunkData = &m_Construct.m_aChunkData[m_Construct.m_DataSize];
-	pChunkData = Header.Pack(pChunkData);
+	pChunkData = Header.Pack(pChunkData, (Protocol() == NETPROTOCOL_SIX) ? 4 : 6);
 	mem_copy(pChunkData, pData, DataSize);
 	pChunkData += DataSize;
 
@@ -163,7 +177,7 @@ void CNetConnection::SendControl(int ControlMsg, const void *pExtra, int ExtraSi
 {
 	// send the control message
 	m_LastSendTime = time_get();
-	m_pNetBase->SendControlMsg(&m_PeerAddr, m_PeerToken, m_Ack, ControlMsg, pExtra, ExtraSize);
+	m_pNetBase->SendControlMsg(&m_PeerAddr, m_PeerToken, m_Ack, ControlMsg, pExtra, ExtraSize, Protocol());
 }
 
 void CNetConnection::SendPacketConnless(const char *pData, int DataSize)
@@ -202,6 +216,7 @@ int CNetConnection::Connect(NETADDR *pAddr)
 	SetToken(GenerateToken(pAddr));
 	mem_zero(m_ErrorString, sizeof(m_ErrorString));
 	m_State = NET_CONNSTATE_TOKEN;
+
 	SendControlWithToken(NET_CTRLMSG_TOKEN);
 	return 0;
 }
@@ -247,7 +262,7 @@ int CNetConnection::Feed(CNetPacketConstruct *pPacket, NETADDR *pAddr)
 
 	int64 Now = time_get();
 
-	if(pPacket->m_Token == NET_TOKEN_NONE || pPacket->m_Token != m_Token)
+	if((Protocol() == NETPROTOCOL_SEVEN) && (pPacket->m_Token == NET_TOKEN_NONE || pPacket->m_Token != m_Token))
 		return 0;
 
 	// check if resend is requested
@@ -315,12 +330,14 @@ int CNetConnection::Feed(CNetPacketConstruct *pPacket, NETADDR *pAddr)
 					{
 						// send response and init connection
 						TOKEN Token = m_Token;
+						int Protocol = m_Protocol;
 						Reset();
 						mem_zero(m_ErrorString, sizeof(m_ErrorString));
 						m_State = NET_CONNSTATE_PENDING;
 						m_PeerAddr = *pAddr;
 						m_PeerToken = pPacket->m_ResponseToken;
 						m_Token = Token;
+						m_Protocol= Protocol;
 						m_LastSendTime = Now;
 						m_LastRecvTime = Now;
 						m_LastUpdateTime = Now;
@@ -424,12 +441,22 @@ int CNetConnection::Update()
 	else if(State() == NET_CONNSTATE_CONNECT)
 	{
 		if(Now-m_LastSendTime > time_freq()/2) // send a new connect every 500ms
-			SendControlWithToken(NET_CTRLMSG_CONNECT);
+		{
+			if(Protocol() == NETPROTOCOL_SEVEN) 
+				SendControlWithToken(NET_CTRLMSG_CONNECT);
+			else
+				SendControl(NET_CTRLMSG_CONNECT, 0, 0);
+		}
 	}
 	else if(State() == NET_CONNSTATE_PENDING)
 	{
 		if(Now-m_LastSendTime > time_freq()/2) // send a new connect/accept every 500ms
-			SendControl(NET_CTRLMSG_ACCEPT, 0, 0);
+		{
+			if(Protocol() == NETPROTOCOL_SEVEN) 
+				SendControl(NET_CTRLMSG_ACCEPT, 0, 0);
+			else
+				SendControl(protocol6::NET_CTRLMSG_CONNECTACCEPT, SECURITY_TOKEN_MAGIC, sizeof(SECURITY_TOKEN_MAGIC));
+		}
 	}
 
 	return 0;

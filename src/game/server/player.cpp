@@ -5,12 +5,14 @@
 #include "entities/flag.h"
 #include "gamecontext.h"
 #include "gamecontroller.h"
+#include "localization.h"
 #include "player.h"
 
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
 IServer *CPlayer::Server() const { return m_pGameServer->Server(); }
+INetConverter *CPlayer::NetConverter() const { return m_pGameServer->NetConverter(); }
 
 CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, bool Dummy, bool AsSpec)
 {
@@ -140,41 +142,42 @@ void CPlayer::Snap(int SnappingClient)
 	if(!IsDummy() && !Server()->ClientIngame(m_ClientID))
 		return;
 
-	CNetObj_PlayerInfo *pPlayerInfo = static_cast<CNetObj_PlayerInfo *>(Server()->SnapNewItem(NETOBJTYPE_PLAYERINFO, m_ClientID, sizeof(CNetObj_PlayerInfo)));
-	if(!pPlayerInfo)
-		return;
+	CNetObj_PlayerInfo PlayerInfo;
 
-	pPlayerInfo->m_PlayerFlags = m_PlayerFlags&PLAYERFLAG_CHATTING;
+	PlayerInfo.m_PlayerFlags = m_PlayerFlags&PLAYERFLAG_CHATTING;
 	if(Server()->IsAuthed(m_ClientID))
-		pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_ADMIN;
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_ADMIN;
 	if(!GameServer()->m_pController->IsPlayerReadyMode() || m_IsReadyToPlay)
-		pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_READY;
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_READY;
 	if(m_RespawnDisabled && (!GetCharacter() || !GetCharacter()->IsAlive()))
-		pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_DEAD;
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_DEAD;
 	if(SnappingClient != -1 && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode) && (SnappingClient == m_SpectatorID))
-		pPlayerInfo->m_PlayerFlags |= PLAYERFLAG_WATCHING;
+		PlayerInfo.m_PlayerFlags |= PLAYERFLAG_WATCHING;
 
-	pPlayerInfo->m_Latency = SnappingClient == -1 ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aActLatency[m_ClientID];
-	pPlayerInfo->m_Score = m_Score;
+	PlayerInfo.m_Latency = SnappingClient == -1 ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aActLatency[m_ClientID];
+	PlayerInfo.m_Score = m_Score;
+
+	if(!NetConverter()->SnapNewItemConvert(&PlayerInfo, this, NETOBJTYPE_PLAYERINFO, m_ClientID, sizeof(PlayerInfo), SnappingClient))
+		return;
 
 	if(m_ClientID == SnappingClient && (m_Team == TEAM_SPECTATORS || m_DeadSpecMode))
 	{
-		CNetObj_SpectatorInfo *pSpectatorInfo = static_cast<CNetObj_SpectatorInfo *>(Server()->SnapNewItem(NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(CNetObj_SpectatorInfo)));
-		if(!pSpectatorInfo)
-			return;
+		CNetObj_SpectatorInfo SpectatorInfo;
 
-		pSpectatorInfo->m_SpecMode = m_SpecMode;
-		pSpectatorInfo->m_SpectatorID = m_SpectatorID;
+		SpectatorInfo.m_SpecMode = m_SpecMode;
+		SpectatorInfo.m_SpectatorID = m_SpectatorID;
 		if(m_pSpecFlag)
 		{
-			pSpectatorInfo->m_X = m_pSpecFlag->GetPos().x;
-			pSpectatorInfo->m_Y = m_pSpecFlag->GetPos().y;
+			SpectatorInfo.m_X = m_pSpecFlag->GetPos().x;
+			SpectatorInfo.m_Y = m_pSpecFlag->GetPos().y;
 		}
 		else
 		{
-			pSpectatorInfo->m_X = m_ViewPos.x;
-			pSpectatorInfo->m_Y = m_ViewPos.y;
+			SpectatorInfo.m_X = m_ViewPos.x;
+			SpectatorInfo.m_Y = m_ViewPos.y;
 		}
+		if(!NetConverter()->SnapNewItemConvert(&SpectatorInfo, this, NETOBJTYPE_SPECTATORINFO, m_ClientID, sizeof(CNetObj_SpectatorInfo), SnappingClient))
+			return;
 	}
 
 	// demo recording
@@ -192,7 +195,7 @@ void CPlayer::Snap(int SnappingClient)
 
 		for(int p = 0; p < NUM_SKINPARTS; p++)
 		{
-			StrToInts(pClientInfo->m_aaSkinPartNames[p], 6, m_TeeInfos.m_aaSkinPartNames[p]);
+			StrToInts(pClientInfo->m_aaSkinPartNames[p], 6, m_TeeInfos.m_apSkinPartNames[p]);
 			pClientInfo->m_aUseCustomColors[p] = m_TeeInfos.m_aUseCustomColors[p];
 			pClientInfo->m_aSkinPartColors[p] = m_TeeInfos.m_aSkinPartColors[p];
 		}

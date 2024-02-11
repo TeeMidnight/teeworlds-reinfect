@@ -62,6 +62,7 @@ public:
 	class CConfig *Config()				{ return m_pGameWorld->Config(); }
 	class CGameContext *GameServer()	{ return m_pGameWorld->GameServer(); }
 	class IServer *Server()				{ return m_pGameWorld->Server(); }
+	class INetConverter *NetConverter();
 
 	/* Getters */
 	CEntity *TypeNext()					{ return m_pNextTypeEntity; }

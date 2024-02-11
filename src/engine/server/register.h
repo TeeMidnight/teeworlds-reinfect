@@ -5,6 +5,14 @@
 
 #include <engine/shared/network.h>
 
+enum
+{
+	REGISTERTYPE_SEVEN=0,
+	REGISTERTYPE_SIX=1,
+
+	NUM_REGISTERTYPES,
+};
+
 class CRegister
 {
 	enum
@@ -34,9 +42,12 @@ class CRegister
 	int64 m_RegisterStateStart;
 	int m_RegisterFirst;
 	int m_RegisterCount;
+	int m_RegisterProtocol;
 
 	CMasterserverInfo m_aMasterserverInfo[IMasterServer::MAX_MASTERSERVERS];
 	int m_RegisterRegisteredServer;
+	
+	const char* RegisterName();
 
 	void RegisterNewState(int State);
 	void RegisterSendFwcheckresponse(NETADDR *pAddr, TOKEN Token);
@@ -46,9 +57,32 @@ class CRegister
 
 public:
 	CRegister();
-	void Init(class CNetServer *pNetServer, class IEngineMasterServer *pMasterServer, class CConfig *pConfig, class IConsole *pConsole);
+	void Init(int ProtocolType, class CNetServer *pNetServer, class IEngineMasterServer *pMasterServer, class CConfig *pConfig, class IConsole *pConsole);
 	void RegisterUpdate(int Nettype);
 	int RegisterProcessPacket(struct CNetChunk *pPacket, TOKEN Token);
 };
+
+#ifdef CONF_DDNETMASTER
+
+class IRegisterDDNet
+{
+public:
+	virtual ~IRegisterDDNet() {}
+
+	virtual void Update() = 0;
+	// Call `OnConfigChange` if you change relevant config variables
+	// without going through the console.
+	virtual void OnConfigChange() = 0;
+	// Returns `true` if the packet was a packet related to registering
+	// code and doesn't have to processed furtherly.
+	virtual bool OnPacket(const CNetChunk *pPacket) = 0;
+	// `pInfo` must be an encoded JSON object.
+	virtual void OnNewInfo(const char *pInfo) = 0;
+	virtual void OnShutdown() = 0;
+};
+
+IRegisterDDNet *CreateRegister(CConfig *pConfig, IConsole *pConsole, class IEngine *pEngine, int ServerPort, int Nettype, unsigned SevenSecurityToken);
+
+#endif
 
 #endif

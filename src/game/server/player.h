@@ -4,6 +4,7 @@
 #define GAME_SERVER_PLAYER_H
 
 #include "alloc.h"
+#include "teeinfo.h"
 
 
 enum
@@ -54,6 +55,7 @@ public:
 
 	// used for spectator mode
 	int GetSpectatorID() const { return m_SpectatorID; }
+	int GetSpecMode() const { return m_SpecMode; }
 	bool SetSpectatorID(int SpecMode, int SpectatorID);
 	bool m_DeadSpecMode;
 	bool DeadCanFollow(CPlayer *pPlayer) const;
@@ -79,12 +81,7 @@ public:
 	int m_LastReadyChangeTick;
 
 	// TODO: clean this up
-	struct
-	{
-		char m_aaSkinPartNames[NUM_SKINPARTS][MAX_SKIN_ARRAY_SIZE];
-		int m_aUseCustomColors[NUM_SKINPARTS];
-		int m_aSkinPartColors[NUM_SKINPARTS];
-	} m_TeeInfos;
+	CTeeInfo m_TeeInfos;
 
 	int m_RespawnTick;
 	int m_DieTick;
@@ -118,6 +115,7 @@ private:
 
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const;
+	INetConverter *NetConverter() const;
 
 	//
 	bool m_Spawning;

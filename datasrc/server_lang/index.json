@@ -1,0 +1,19 @@
+{
+	"index": [
+		{
+			"file": "zh-CN",
+			"name": "简体中文",
+			"code": 156
+		},
+		{
+			"file": "zh-TW",
+			"name": "繁體中文",
+			"code": 158
+		},
+		{
+			"file": "en",
+			"name": "English",
+			"code": 826
+		}
+	]
+}

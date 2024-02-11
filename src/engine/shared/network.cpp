@@ -17,6 +17,11 @@ static void ConchainDbgLognetwork(IConsole::IResult *pResult, void *pUserData, I
 	((CNetBase *)pUserData)->UpdateLogHandles();
 }
 
+static int GetHeaderSize(CNetConnection *pConnection)
+{
+	return (pConnection && (pConnection->Protocol() == NETPROTOCOL_SIX)) ? 4 : 6;
+}
+
 void CNetRecvUnpacker::Clear()
 {
 	m_Valid = false;
@@ -58,12 +63,12 @@ int CNetRecvUnpacker::FetchChunk(CNetChunk *pChunk)
 		// TODO: add checking here so we don't read too far
 		for(int i = 0; i < m_CurrentChunk; i++)
 		{
-			pData = Header.Unpack(pData);
+			pData = Header.Unpack(pData, GetHeaderSize(m_pConnection));
 			pData += Header.m_Size;
 		}
 
 		// unpack the header
-		pData = Header.Unpack(pData);
+		pData = Header.Unpack(pData, GetHeaderSize(m_pConnection));
 		m_CurrentChunk++;
 
 		if(pData+Header.m_Size > pEnd)
@@ -168,7 +173,7 @@ void CNetBase::SendPacketConnless(const NETADDR *pAddr, TOKEN Token, TOKEN Respo
 	net_udp_send(m_Socket, pAddr, aBuffer, i+DataSize);
 }
 
-void CNetBase::SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket)
+void CNetBase::SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket, int Protocol)
 {
 	unsigned char aBuffer[NET_MAX_PACKETSIZE];
 	int CompressedSize = -1;
@@ -186,9 +191,10 @@ void CNetBase::SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket)
 
 	dbg_assert((pPacket->m_Token&~NET_TOKEN_MASK) == 0, "token out of range");
 
+	int HeaderSize = (Protocol == NETPROTOCOL_SIX) ? 3 : NET_PACKETHEADERSIZE;
 	// compress if not ctrl msg
 	if(!(pPacket->m_Flags&NET_PACKETFLAG_CONTROL))
-		CompressedSize = m_Huffman.Compress(pPacket->m_aChunkData, pPacket->m_DataSize, &aBuffer[NET_PACKETHEADERSIZE], NET_MAX_PAYLOAD);
+		CompressedSize = m_Huffman.Compress(pPacket->m_aChunkData, pPacket->m_DataSize, &aBuffer[HeaderSize], NET_MAX_PAYLOAD);
 
 	// check if the compression was enabled, successful and good enough
 	if(CompressedSize > 0 && CompressedSize < pPacket->m_DataSize)
@@ -200,25 +206,45 @@ void CNetBase::SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket)
 	{
 		// use uncompressed data
 		FinalSize = pPacket->m_DataSize;
-		mem_copy(&aBuffer[NET_PACKETHEADERSIZE], pPacket->m_aChunkData, pPacket->m_DataSize);
+		mem_copy(&aBuffer[HeaderSize], pPacket->m_aChunkData, pPacket->m_DataSize);
 		pPacket->m_Flags &= ~NET_PACKETFLAG_COMPRESSION;
+	}
+		
+	if(Protocol == NETPROTOCOL_SIX)
+	{
+		unsigned Flags = 0;
+		if(pPacket->m_Flags & NET_PACKETFLAG_CONTROL)
+			Flags |= 4;
+		if(pPacket->m_Flags & NET_PACKETFLAG_CONNLESS)
+			Flags |= 8;
+		if(pPacket->m_Flags & NET_PACKETFLAG_RESEND)
+			Flags |= 16;
+		if(pPacket->m_Flags & NET_PACKETFLAG_COMPRESSION)
+			Flags |= 32;
+		pPacket->m_Flags = Flags;
 	}
 
 	// set header and send the packet if all things are good
 	if(FinalSize >= 0)
 	{
-		FinalSize += NET_PACKETHEADERSIZE;
+		FinalSize += HeaderSize;
 
 		int i = 0;
 		aBuffer[i++] = ((pPacket->m_Flags<<2)&0xfc) | ((pPacket->m_Ack>>8)&0x03); // flags and ack
 		aBuffer[i++] = (pPacket->m_Ack)&0xff; // ack
-		aBuffer[i++] = (pPacket->m_NumChunks)&0xff; // num chunks
-		aBuffer[i++] = (pPacket->m_Token>>24)&0xff; // token
-		aBuffer[i++] = (pPacket->m_Token>>16)&0xff;
-		aBuffer[i++] = (pPacket->m_Token>>8)&0xff;
-		aBuffer[i++] = (pPacket->m_Token)&0xff;
-
-		dbg_assert(i == NET_PACKETHEADERSIZE, "inconsistency");
+		if(Protocol == NETPROTOCOL_SEVEN)
+		{
+			aBuffer[i++] = (pPacket->m_NumChunks)&0xff; // num chunks
+			aBuffer[i++] = (pPacket->m_Token>>24)&0xff; // token
+			aBuffer[i++] = (pPacket->m_Token>>16)&0xff;
+			aBuffer[i++] = (pPacket->m_Token>>8)&0xff;
+			aBuffer[i++] = (pPacket->m_Token)&0xff;
+		}else
+		{
+			aBuffer[i++] = pPacket->m_NumChunks; // num chunks
+		}
+		
+		dbg_assert(i == HeaderSize, "inconsistency");
 
 		net_udp_send(m_Socket, pAddr, aBuffer, FinalSize);
 
@@ -234,14 +260,27 @@ void CNetBase::SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket)
 	}
 }
 
+static const unsigned char NET_HEADER_EXTENDED[] = {'x', 'e'};
 // TODO: rename this function
-int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketConstruct *pPacket)
+int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketConstruct *pPacket, int& Protocol, int *pSize)
 {
 	int Size = net_udp_recv(m_Socket, pAddr, pBuffer, NET_MAX_PACKETSIZE);
+	
 	// no more packets for now
 	if(Size <= 0)
 		return 1;
 
+	int Success = UnpackPacket(pBuffer, Size, pPacket, Protocol);
+	if(pSize)
+	{
+		*pSize = Size;
+	}
+	// return success
+	return Success;
+}
+
+int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket, int& Protocol)
+{
 	// log the data
 	if(m_DataLogRecv)
 	{
@@ -253,7 +292,7 @@ int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketCon
 	}
 
 	// check the size
-	if(Size < NET_PACKETHEADERSIZE || Size > NET_MAX_PACKETSIZE)
+	if(Size < 3 || Size > NET_MAX_PACKETSIZE)
 	{
 		if(m_pConfig->m_Debug)
 			dbg_msg("network", "packet too small, size=%d", Size);
@@ -261,12 +300,15 @@ int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketCon
 	}
 
 	// read the packet
-
 	pPacket->m_Flags = (pBuffer[0]&0xfc)>>2;
 		// FFFFFFxx
+	
 	if(pPacket->m_Flags&NET_PACKETFLAG_CONNLESS)
 	{
-		if(Size < NET_PACKETHEADERSIZE_CONNLESS)
+		if(Protocol == NETPROTOCOL_UNKNOWN)
+			Protocol = ((pBuffer[0] & 0x3) == 1) ? NETPROTOCOL_SEVEN : NETPROTOCOL_SIX;
+		int Offset = (Protocol == NETPROTOCOL_SIX) ? 6 : NET_PACKETHEADERSIZE_CONNLESS;
+		if(Size < Offset)
 		{
 			if(m_pConfig->m_Debug)
 				dbg_msg("net", "connless packet too small, size=%d", Size);
@@ -279,23 +321,64 @@ int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketCon
 		int Version = pBuffer[0]&0x3;
 			// xxxxxxVV
 
-		if(Version != NET_PACKETVERSION)
+		if((Protocol == NETPROTOCOL_SEVEN) && Version != NET_PACKETVERSION)
 			return -1;
 
-		pPacket->m_DataSize = Size - NET_PACKETHEADERSIZE_CONNLESS;
-		pPacket->m_Token = (pBuffer[1] << 24) | (pBuffer[2] << 16) | (pBuffer[3] << 8) | pBuffer[4];
-			// TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
-		pPacket->m_ResponseToken = (pBuffer[5]<<24) | (pBuffer[6]<<16) | (pBuffer[7]<<8) | pBuffer[8];
-			// RRRRRRRR RRRRRRRR RRRRRRRR RRRRRRRR
-		mem_copy(pPacket->m_aChunkData, &pBuffer[NET_PACKETHEADERSIZE_CONNLESS], pPacket->m_DataSize);
+		pPacket->m_DataSize = Size - Offset;
+		if(Protocol == NETPROTOCOL_SEVEN)
+		{
+			pPacket->m_Token = (pBuffer[1] << 24) | (pBuffer[2] << 16) | (pBuffer[3] << 8) | pBuffer[4];
+				// TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+			pPacket->m_ResponseToken = (pBuffer[5]<<24) | (pBuffer[6]<<16) | (pBuffer[7]<<8) | pBuffer[8];
+				// RRRRRRRR RRRRRRRR RRRRRRRR RRRRRRRR
+		}else
+		{
+			pPacket->m_ResponseToken = NET_TOKEN_NONE;
+		}
+		mem_copy(pPacket->m_aChunkData, &pBuffer[Offset], pPacket->m_DataSize);
+		
+		if((Protocol == NETPROTOCOL_SIX) && mem_comp(pBuffer, NET_HEADER_EXTENDED, sizeof(NET_HEADER_EXTENDED)) == 0)
+		{
+			pPacket->m_Flags |= NET_PACKETFLAG_EXTENDED;
+			mem_copy(pPacket->m_aExtraData, pBuffer + sizeof(NET_HEADER_EXTENDED), sizeof(pPacket->m_aExtraData));
+		}
 	}
 	else
 	{
+		if(Protocol == NETPROTOCOL_UNKNOWN)
+		{
+			if(pPacket->m_Flags&NET_PACKETFLAG_CONTROL)
+				Protocol = NETPROTOCOL_SEVEN;
+			else
+				Protocol = NETPROTOCOL_SIX;
+		}
+
+		int DataStart = (Protocol == NETPROTOCOL_SIX) ? 3 : NET_PACKETHEADERSIZE;
+		if((Protocol == NETPROTOCOL_SIX) && Size < DataStart)
+		{
+			return -1;
+		}
+		
 		if(Size - NET_PACKETHEADERSIZE > NET_MAX_PAYLOAD)
 		{
 			if(m_pConfig->m_Debug)
 				dbg_msg("network", "packet payload too big, size=%d", Size);
 			return -1;
+		}
+		
+		if(Protocol == NETPROTOCOL_SIX)
+		{
+			unsigned Flags = 0;
+			if(pPacket->m_Flags & 4)
+				Flags |= NET_PACKETFLAG_CONTROL;
+			if(pPacket->m_Flags & 8)
+				Flags |= NET_PACKETFLAG_CONNLESS;
+			if(pPacket->m_Flags & 16)
+				Flags |= NET_PACKETFLAG_RESEND;
+			if(pPacket->m_Flags & 32)
+				Flags |= NET_PACKETFLAG_COMPRESSION;
+			pPacket->m_Flags = Flags;
+			pPacket->m_Token = NET_TOKEN_NONE;
 		}
 
 		pPacket->m_Ack = ((pBuffer[0]&0x3)<<8) | pBuffer[1];
@@ -303,15 +386,17 @@ int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketCon
 		pPacket->m_NumChunks = pBuffer[2];
 			// NNNNNNNN
 
-		pPacket->m_DataSize = Size - NET_PACKETHEADERSIZE;
-		pPacket->m_Token = (pBuffer[3] << 24) | (pBuffer[4] << 16) | (pBuffer[5] << 8) | pBuffer[6];
-			// TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+		pPacket->m_DataSize = Size - DataStart;
+
+		if(Protocol == NETPROTOCOL_SEVEN)
+			pPacket->m_Token = (pBuffer[3] << 24) | (pBuffer[4] << 16) | (pBuffer[5] << 8) | pBuffer[6];
+				// TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
 		pPacket->m_ResponseToken = NET_TOKEN_NONE;
 
 		if(pPacket->m_Flags&NET_PACKETFLAG_COMPRESSION)
-			pPacket->m_DataSize = m_Huffman.Decompress(&pBuffer[NET_PACKETHEADERSIZE], pPacket->m_DataSize, pPacket->m_aChunkData, sizeof(pPacket->m_aChunkData));
+			pPacket->m_DataSize = m_Huffman.Decompress(&pBuffer[DataStart], pPacket->m_DataSize, pPacket->m_aChunkData, sizeof(pPacket->m_aChunkData));
 		else
-			mem_copy(pPacket->m_aChunkData, &pBuffer[NET_PACKETHEADERSIZE], pPacket->m_DataSize);
+			mem_copy(pPacket->m_aChunkData, &pBuffer[DataStart], pPacket->m_DataSize);
 	}
 
 	// check for errors
@@ -323,7 +408,7 @@ int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketCon
 	}
 
 	// set the response token (a bit hacky because this function shouldn't know about control packets)
-	if(pPacket->m_Flags&NET_PACKETFLAG_CONTROL)
+	if((Protocol == NETPROTOCOL_SEVEN) && pPacket->m_Flags&NET_PACKETFLAG_CONTROL)
 	{
 		if(pPacket->m_DataSize >= 5) // control byte + token
 		{
@@ -346,12 +431,10 @@ int CNetBase::UnpackPacket(NETADDR *pAddr, unsigned char *pBuffer, CNetPacketCon
 		io_flush(m_DataLogRecv);
 	}
 
-	// return success
 	return 0;
 }
 
-
-void CNetBase::SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, const void *pExtra, int ExtraSize)
+void CNetBase::SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int ControlMsg, const void *pExtra, int ExtraSize, int Protocol)
 {
 	CNetPacketConstruct Construct;
 	Construct.m_Token = Token;
@@ -364,7 +447,7 @@ void CNetBase::SendControlMsg(const NETADDR *pAddr, TOKEN Token, int Ack, int Co
 		mem_copy(&Construct.m_aChunkData[1], pExtra, ExtraSize);
 
 	// send the control message
-	SendPacket(pAddr, &Construct);
+	SendPacket(pAddr, &Construct, Protocol);
 }
 
 
@@ -377,30 +460,30 @@ void CNetBase::SendControlMsgWithToken(const NETADDR *pAddr, TOKEN Token, int Ac
 	m_aRequestTokenBuf[1] = (MyToken>>16)&0xff;
 	m_aRequestTokenBuf[2] = (MyToken>>8)&0xff;
 	m_aRequestTokenBuf[3] = (MyToken)&0xff;
-	SendControlMsg(pAddr, Token, 0, ControlMsg, m_aRequestTokenBuf, Extended ? sizeof(m_aRequestTokenBuf) : 4);
+	SendControlMsg(pAddr, Token, 0, ControlMsg, m_aRequestTokenBuf, Extended ? sizeof(m_aRequestTokenBuf) : 4, NETPROTOCOL_SEVEN);
 }
 
-unsigned char *CNetChunkHeader::Pack(unsigned char *pData)
+unsigned char *CNetChunkHeader::Pack(unsigned char *pData, int Split)
 {
-	pData[0] = ((m_Flags&0x03)<<6) | ((m_Size>>6)&0x3F);
-	pData[1] = (m_Size&0x3F);
+	pData[0] = ((m_Flags&0x03)<<6) | ((m_Size>>Split)&0x3F);
+	pData[1] = (m_Size&((1<<Split)-1));
 	if(m_Flags&NET_CHUNKFLAG_VITAL)
 	{
-		pData[1] |= (m_Sequence>>2)&0xC0;
+		pData[1] |= (m_Sequence>>2)&(~((1<<Split)-1));
 		pData[2] = m_Sequence&0xFF;
 		return pData + 3;
 	}
 	return pData + 2;
 }
 
-unsigned char *CNetChunkHeader::Unpack(unsigned char *pData)
+unsigned char *CNetChunkHeader::Unpack(unsigned char *pData, int Split)
 {
 	m_Flags = (pData[0]>>6)&0x03;
-	m_Size = ((pData[0]&0x3F)<<6) | (pData[1]&0x3F);
+	m_Size = ((pData[0]&0x3F)<<Split) | (pData[1]&((1<<Split)-1));
 	m_Sequence = -1;
 	if(m_Flags&NET_CHUNKFLAG_VITAL)
 	{
-		m_Sequence = ((pData[1]&0xC0)<<2) | pData[2];
+		m_Sequence = ((pData[1]&(~((1<<Split)-1)))<<2) | pData[2];
 		return pData + 3;
 	}
 	return pData + 2;

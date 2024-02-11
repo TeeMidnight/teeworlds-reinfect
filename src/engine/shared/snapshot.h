@@ -135,8 +135,8 @@ class CSnapshotBuilder
 
 	int m_aOffsets[MAX_ITEMS];
 	int m_NumItems;
-
 public:
+
 	void Init();
 	void Init(const CSnapshot *pSnapshot);
 	bool UnserializeSnap(const char *pSrcData, int SrcSize);

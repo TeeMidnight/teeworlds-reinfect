@@ -10,6 +10,7 @@
 #include "gamecontroller.h"
 #include "player.h"
 
+INetConverter *IGameController::NetConverter() const { return m_pGameServer->NetConverter(); }
 
 IGameController::IGameController(CGameContext *pGameServer)
 {
@@ -672,54 +673,56 @@ void IGameController::SwapTeamscore()
 // general
 void IGameController::Snap(int SnappingClient)
 {
-	CNetObj_GameData *pGameData = static_cast<CNetObj_GameData *>(Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData)));
-	if(!pGameData)
-		return;
+	CNetObj_GameData GameData;
 
-	pGameData->m_GameStartTick = m_GameStartTick;
-	pGameData->m_GameStateFlags = 0;
-	pGameData->m_GameStateEndTick = 0; // no timer/infinite = 0, on end = GameEndTick, otherwise = GameStateEndTick
+	GameData.m_GameStartTick = m_GameStartTick;
+	GameData.m_GameStateFlags = 0;
+	GameData.m_GameStateEndTick = 0; // no timer/infinite = 0, on end = GameEndTick, otherwise = GameStateEndTick
 	switch(m_GameState)
 	{
 	case IGS_WARMUP_GAME:
 	case IGS_WARMUP_USER:
-		pGameData->m_GameStateFlags |= GAMESTATEFLAG_WARMUP;
+		GameData.m_GameStateFlags |= GAMESTATEFLAG_WARMUP;
 		if(m_GameStateTimer != TIMER_INFINITE)
-			pGameData->m_GameStateEndTick = Server()->Tick()+m_GameStateTimer;
+			GameData.m_GameStateEndTick = Server()->Tick()+m_GameStateTimer;
 		break;
 	case IGS_START_COUNTDOWN:
-		pGameData->m_GameStateFlags |= GAMESTATEFLAG_STARTCOUNTDOWN|GAMESTATEFLAG_PAUSED;
+		GameData.m_GameStateFlags |= GAMESTATEFLAG_STARTCOUNTDOWN|GAMESTATEFLAG_PAUSED;
 		if(m_GameStateTimer != TIMER_INFINITE)
-			pGameData->m_GameStateEndTick = Server()->Tick()+m_GameStateTimer;
+			GameData.m_GameStateEndTick = Server()->Tick()+m_GameStateTimer;
 		break;
 	case IGS_GAME_PAUSED:
-		pGameData->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
+		GameData.m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
 		if(m_GameStateTimer != TIMER_INFINITE)
-			pGameData->m_GameStateEndTick = Server()->Tick()+m_GameStateTimer;
+			GameData.m_GameStateEndTick = Server()->Tick()+m_GameStateTimer;
 		break;
 	case IGS_END_ROUND:
-		pGameData->m_GameStateFlags |= GAMESTATEFLAG_ROUNDOVER;
-		pGameData->m_GameStateEndTick = Server()->Tick()-m_GameStartTick-TIMER_END/2*Server()->TickSpeed()+m_GameStateTimer;
+		GameData.m_GameStateFlags |= GAMESTATEFLAG_ROUNDOVER;
+		GameData.m_GameStateEndTick = Server()->Tick()-m_GameStartTick-TIMER_END/2*Server()->TickSpeed()+m_GameStateTimer;
 		break;
 	case IGS_END_MATCH:
-		pGameData->m_GameStateFlags |= GAMESTATEFLAG_GAMEOVER;
-		pGameData->m_GameStateEndTick = Server()->Tick()-m_GameStartTick-TIMER_END*Server()->TickSpeed()+m_GameStateTimer;
+		GameData.m_GameStateFlags |= GAMESTATEFLAG_GAMEOVER;
+		GameData.m_GameStateEndTick = Server()->Tick()-m_GameStartTick-TIMER_END*Server()->TickSpeed()+m_GameStateTimer;
 		break;
 	case IGS_GAME_RUNNING:
 		// not effected
 		break;
 	}
 	if(m_SuddenDeath)
-		pGameData->m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
+		GameData.m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
+
+	if(!NetConverter()->SnapNewItemConvert(&GameData, this, NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData), SnappingClient))
+		return;
 
 	if(IsTeamplay())
 	{
-		CNetObj_GameDataTeam *pGameDataTeam = static_cast<CNetObj_GameDataTeam *>(Server()->SnapNewItem(NETOBJTYPE_GAMEDATATEAM, 0, sizeof(CNetObj_GameDataTeam)));
-		if(!pGameDataTeam)
-			return;
+		CNetObj_GameDataTeam GameDataTeam;
 
-		pGameDataTeam->m_TeamscoreRed = m_aTeamscore[TEAM_RED];
-		pGameDataTeam->m_TeamscoreBlue = m_aTeamscore[TEAM_BLUE];
+		GameDataTeam.m_TeamscoreRed = m_aTeamscore[TEAM_RED];
+		GameDataTeam.m_TeamscoreBlue = m_aTeamscore[TEAM_BLUE];
+
+		if(!NetConverter()->SnapNewItemConvert(&GameDataTeam, this, NETOBJTYPE_GAMEDATATEAM, 0, sizeof(CNetObj_GameDataTeam), SnappingClient))
+			return;
 	}
 
 	// demo recording
@@ -1208,15 +1211,6 @@ int IGameController::GetStartTeam()
 	return TEAM_SPECTATORS;
 }
 
-/*void IGameController::Com_Example(IConsole::IResult *pResult, void *pContext)
-{
-	CCommandManager::SCommandContext *pComContext = (CCommandManager::SCommandContext *)pContext;
-	IGameController *pSelf = (IGameController *)pComContext->m_pContext;
-
-	pSelf->GameServer()->SendBroadcast(pResult->GetString(0), -1);
-}*/
-
 void IGameController::RegisterChatCommands(CCommandManager *pManager)
 {
-	//pManager->AddCommand("test", "Test the command system", "r", Com_Example, this);
 }

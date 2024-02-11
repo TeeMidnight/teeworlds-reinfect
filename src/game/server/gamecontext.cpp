@@ -6,8 +6,11 @@
 #include <engine/shared/memheap.h>
 #include <engine/storage.h>
 #include <engine/map.h>
+#include <engine/netconverter.h>
 
 #include <generated/server_data.h>
+#include <generated/protocol6.h>
+#include <generated/protocolglue.h>
 #include <game/collision.h>
 #include <game/gamecore.h>
 #include <game/version.h>
@@ -21,6 +24,7 @@
 #include "gamemodes/mod.h"
 #include "gamemodes/tdm.h"
 #include "gamecontext.h"
+#include "localization.h"
 #include "player.h"
 
 enum
@@ -246,7 +250,10 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, int To, const char *p
 	{
 		// send to the clients
 		Msg.m_TargetID = To;
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		if(ChatterClientID != -1)
+			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		if(ChatterClientID == -1)
+			Msg.m_Mode = CHAT_ALL;
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, To);
 	}
 }
@@ -282,6 +289,9 @@ void CGameContext::SendMotd(int ClientID)
 
 void CGameContext::SendSettings(int ClientID)
 {
+	if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+		return;
+
 	CNetMsg_Sv_ServerSettings Msg;
 	Msg.m_KickVote = Config()->m_SvVoteKick;
 	Msg.m_KickMin = Config()->m_SvVoteKickMin;
@@ -298,7 +308,7 @@ void CGameContext::SendSkinChange(int ClientID, int TargetID)
 	Msg.m_ClientID = ClientID;
 	for(int p = 0; p < NUM_SKINPARTS; p++)
 	{
-		Msg.m_apSkinPartNames[p] = m_apPlayers[ClientID]->m_TeeInfos.m_aaSkinPartNames[p];
+		Msg.m_apSkinPartNames[p] = m_apPlayers[ClientID]->m_TeeInfos.m_apSkinPartNames[p];
 		Msg.m_aUseCustomColors[p] = m_apPlayers[ClientID]->m_TeeInfos.m_aUseCustomColors[p];
 		Msg.m_aSkinPartColors[p] = m_apPlayers[ClientID]->m_TeeInfos.m_aSkinPartColors[p];
 	}
@@ -459,11 +469,11 @@ void CGameContext::CheckPureTuning()
 	if(!m_pController)
 		return;
 
-	if(	str_comp(m_pController->GetGameType(), "DM")==0 ||
-		str_comp(m_pController->GetGameType(), "TDM")==0 ||
-		str_comp(m_pController->GetGameType(), "CTF")==0 ||
-		str_comp(m_pController->GetGameType(), "LMS")==0 ||
-		str_comp(m_pController->GetGameType(), "LTS")==0)
+	if(	str_comp(m_pController->GetGameType(), "TSG|DM")==0 ||
+		str_comp(m_pController->GetGameType(), "TSG|TDM")==0 ||
+		str_comp(m_pController->GetGameType(), "TSG|CTF")==0 ||
+		str_comp(m_pController->GetGameType(), "TSG|LMS")==0 ||
+		str_comp(m_pController->GetGameType(), "TSG|LTS")==0)
 	{
 		CTuningParams p;
 		if(mem_comp(&p, &m_Tuning, sizeof(p)) != 0)
@@ -480,8 +490,9 @@ void CGameContext::SendTuningParams(int ClientID)
 
 	CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS);
 	int *pParams = (int *)&m_Tuning;
-	for(unsigned i = 0; i < sizeof(m_Tuning)/sizeof(int); i++)
+	for(unsigned i = 0; i < sizeof(m_Tuning) / sizeof(int); i++)
 		Msg.AddInt(pParams[i]);
+
 	Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
@@ -527,7 +538,9 @@ void CGameContext::OnTick()
 	{
 		// abort the kick-vote on player-leave
 		if(m_VoteCloseTime == -1)
+		{
 			EndVote(VOTE_END_ABORT, false);
+		}
 		else
 		{
 			int Total = 0, Yes = 0, No = 0;
@@ -580,7 +593,9 @@ void CGameContext::OnTick()
 				EndVote(VOTE_END_PASS, m_VoteEnforce == VOTE_CHOICE_YES);
 			}
 			else if(m_VoteEnforce == VOTE_CHOICE_NO || (m_VoteUpdate && No >= (Total+1)/2) || time_get() > m_VoteCloseTime)
+			{		
 				EndVote(VOTE_END_FAIL, m_VoteEnforce == VOTE_CHOICE_NO);
+			}
 			else if(m_VoteUpdate)
 			{
 				m_VoteUpdate = false;
@@ -603,9 +618,23 @@ void CGameContext::OnTick()
 #endif
 }
 
+static int PlayerFlags_SixToSeven(int Flags)
+{
+	int Seven = 0;
+	if(Flags & protocol6::PLAYERFLAG_CHATTING)
+		Seven |= PLAYERFLAG_CHATTING;
+	if(Flags & protocol6::PLAYERFLAG_SCOREBOARD)
+		Seven |= PLAYERFLAG_SCOREBOARD;
+	return Seven;
+}
+
 // Server hooks
 void CGameContext::OnClientDirectInput(int ClientID, void *pInput)
 {
+	auto *pPlayerInput = (CNetObj_PlayerInput *)pInput;
+	if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+		pPlayerInput->m_PlayerFlags = PlayerFlags_SixToSeven(pPlayerInput->m_PlayerFlags);
+
 	int NumFailures = m_NetObjHandler.NumObjFailures();
 	if(m_NetObjHandler.ValidateObj(NETOBJTYPE_PLAYERINPUT, pInput, sizeof(CNetObj_PlayerInput)) == -1)
 	{
@@ -617,7 +646,7 @@ void CGameContext::OnClientDirectInput(int ClientID, void *pInput)
 		}
 	}
 	else
-		m_apPlayers[ClientID]->OnDirectInput((CNetObj_PlayerInput *)pInput);
+		m_apPlayers[ClientID]->OnDirectInput(pPlayerInput);
 }
 
 void CGameContext::OnClientPredictedInput(int ClientID, void *pInput)
@@ -663,7 +692,7 @@ void CGameContext::OnClientEnter(int ClientID)
 
 	for(int p = 0; p < NUM_SKINPARTS; p++)
 	{
-		NewClientInfoMsg.m_apSkinPartNames[p] = m_apPlayers[ClientID]->m_TeeInfos.m_aaSkinPartNames[p];
+		NewClientInfoMsg.m_apSkinPartNames[p] = m_apPlayers[ClientID]->m_TeeInfos.m_apSkinPartNames[p];
 		NewClientInfoMsg.m_aUseCustomColors[p] = m_apPlayers[ClientID]->m_TeeInfos.m_aUseCustomColors[p];
 		NewClientInfoMsg.m_aSkinPartColors[p] = m_apPlayers[ClientID]->m_TeeInfos.m_aSkinPartColors[p];
 	}
@@ -689,16 +718,28 @@ void CGameContext::OnClientEnter(int ClientID)
 		ClientInfoMsg.m_Silent = false;
 		for(int p = 0; p < NUM_SKINPARTS; p++)
 		{
-			ClientInfoMsg.m_apSkinPartNames[p] = m_apPlayers[i]->m_TeeInfos.m_aaSkinPartNames[p];
+			ClientInfoMsg.m_apSkinPartNames[p] = m_apPlayers[i]->m_TeeInfos.m_apSkinPartNames[p];
 			ClientInfoMsg.m_aUseCustomColors[p] = m_apPlayers[i]->m_TeeInfos.m_aUseCustomColors[p];
 			ClientInfoMsg.m_aSkinPartColors[p] = m_apPlayers[i]->m_TeeInfos.m_aSkinPartColors[p];
 		}
 		Server()->SendPackMsg(&ClientInfoMsg, MSGFLAG_VITAL|MSGFLAG_NORECORD, ClientID);
 	}
 
+#ifdef CONF_DDNETMASTER
+	Server()->ExpireServerInfo();
+#endif
+
 	// local info
 	NewClientInfoMsg.m_Local = 1;
 	Server()->SendPackMsg(&NewClientInfoMsg, MSGFLAG_VITAL|MSGFLAG_NORECORD, ClientID);
+
+	// send version msg
+	if(!NewClientInfoMsg.m_Silent)
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "'%s' v0x%04x", Server()->ClientName(ClientID), Server()->GetClientVersion(ClientID));
+		SendChat(-1, CHAT_ALL, -1, aBuf);
+	}
 
 	if(Server()->DemoRecorder_IsRecording())
 	{
@@ -742,6 +783,10 @@ void CGameContext::OnClientTeamChange(int ClientID)
 		if(p->GetOwner() == ClientID)
 			p->LoseOwner();
 	}
+
+#ifdef CONF_DDNETMASTER
+	Server()->ExpireServerInfo();
+#endif
 }
 
 void CGameContext::OnClientDrop(int ClientID, const char *pReason)
@@ -769,6 +814,23 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, -1);
 	}
 
+	int Language = Server()->GetClientLanguage(ClientID);
+	if(Language != -1 && Language != g_Localization.GetLanguageCode(Config()->m_SvDefaultLanguage))
+	{
+		bool Unload = true;
+		for(int i = 0; i < MAX_CLIENTS; i ++)
+		{
+			if(Server()->GetClientLanguage(ClientID) == Language)
+			{
+				Unload = false;
+				break;
+			}
+		}
+
+		if(Unload)
+			g_Localization.DoUnload(Language);
+	}
+
 	// mark client's projectile has team projectile
 	CProjectile *p = (CProjectile *)m_World.FindFirst(CGameWorld::ENTTYPE_PROJECTILE);
 	for(; p; p = (CProjectile *)p->TypeNext())
@@ -781,12 +843,16 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 	m_apPlayers[ClientID] = 0;
 
 	m_VoteUpdate = true;
+	
+#ifdef CONF_DDNETMASTER
+	Server()->ExpireServerInfo();
+#endif
 }
 
 void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 {
-	void *pRawMsg = m_NetObjHandler.SecureUnpackMsg(MsgID, pUnpacker);
 	CPlayer *pPlayer = m_apPlayers[ClientID];
+	void *pRawMsg = m_NetObjHandler.SecureUnpackMsg(MsgID, pUnpacker);
 
 	if(!pRawMsg)
 	{
@@ -1081,10 +1147,12 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			for(int p = 0; p < NUM_SKINPARTS; p++)
 			{
-				str_utf8_copy_num(pPlayer->m_TeeInfos.m_aaSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_aaSkinPartNames[p]), MAX_SKIN_LENGTH);
+				str_utf8_copy_num(pPlayer->m_TeeInfos.m_apSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_apSkinPartNames[p]), MAX_SKIN_LENGTH);
 				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
 				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
+			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SEVEN)
+				pPlayer->m_TeeInfos.FromSeven();
 
 			// update all clients
 			for(int i = 0; i < MAX_CLIENTS; ++i)
@@ -1094,6 +1162,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 				SendSkinChange(pPlayer->GetCID(), i);
 			}
+#ifdef CONF_DDNETMASTER
+			Server()->ExpireServerInfo();
+#endif
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 		}
@@ -1120,10 +1191,12 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			for(int p = 0; p < NUM_SKINPARTS; p++)
 			{
-				str_utf8_copy_num(pPlayer->m_TeeInfos.m_aaSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_aaSkinPartNames[p]), MAX_SKIN_LENGTH);
+				str_utf8_copy_num(pPlayer->m_TeeInfos.m_apSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_apSkinPartNames[p]), MAX_SKIN_LENGTH);
 				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
 				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
+			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SEVEN)
+				pPlayer->m_TeeInfos.FromSeven();
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 
@@ -1131,12 +1204,15 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			CNetMsg_Sv_VoteClearOptions ClearMsg;
 			Server()->SendPackMsg(&ClearMsg, MSGFLAG_VITAL, ClientID);
 
+			int MaxOptions = MAX_VOTE_OPTION_ADD;
+			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+				MaxOptions = MAX_VOTE_OPTION_ADD6;
 			CVoteOptionServer *pCurrent = m_pVoteOptionFirst;
 			while(pCurrent)
 			{
 				// count options for actual packet
 				int NumOptions = 0;
-				for(CVoteOptionServer *p = pCurrent; p && NumOptions < MAX_VOTE_OPTION_ADD; p = p->m_pNext, ++NumOptions);
+				for(CVoteOptionServer *p = pCurrent; p && NumOptions < MaxOptions; p = p->m_pNext, ++NumOptions);
 
 				// pack and send vote list packet
 				CMsgPacker Msg(NETMSGTYPE_SV_VOTEOPTIONLISTADD);
@@ -1146,6 +1222,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 					Msg.AddString(pCurrent->m_aDescription, VOTE_DESC_LENGTH);
 					pCurrent = pCurrent->m_pNext;
 				}
+				if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SIX)
+					for(int i = NumOptions; i < MaxOptions; i ++)
+						Msg.AddString("", VOTE_DESC_LENGTH);
 				Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 			}
 
@@ -1586,6 +1665,65 @@ void CGameContext::RemoveCommandHook(const CCommandManager::CCommand *pCommand, 
 	pSelf->SendRemoveChatCommand(pCommand, -1);
 }
 
+void CGameContext::ComLanguage(IConsole::IResult *pResult, void *pContext)
+{
+	CCommandManager::SCommandContext *pComContext = (CCommandManager::SCommandContext *)pContext;
+	CGameContext *pSelf = (CGameContext *)pComContext->m_pContext;
+
+	int PlayerCode = pSelf->Server()->GetClientLanguage(pComContext->m_ClientID);
+	if(pResult->NumArguments() != 1)
+	{
+		pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, Localize(PlayerCode, "use /language <Code> change your language"));
+		pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, g_Localization.GetLanguageList());
+		return;
+	}
+
+	int Code = g_Localization.GetLanguageCode(pResult->GetString(0));
+	if(Code == -1)
+	{
+		pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, Localize(PlayerCode, "No such language"));
+		return;
+	}
+
+	if(Code == PlayerCode)
+		return; // you can't change to the same language
+
+	if(!g_Localization.IsLanguageLoaded(Code))
+	{
+		g_Localization.Load(g_Localization.GetLanguageStr(Code), pSelf->Storage(), pSelf->Console());
+	}
+
+	pSelf->Server()->SetClientLanguage(pComContext->m_ClientID, Code);
+	pSelf->SendChat(-1, CHAT_WHISPER, pComContext->m_ClientID, Localize(Code, "Successfully changed language to English"));
+}
+
+void CGameContext::ComWhisper(IConsole::IResult *pResult, void *pContext)
+{
+	CCommandManager::SCommandContext *pComContext = (CCommandManager::SCommandContext *)pContext;
+	CGameContext *pSelf = (CGameContext *)pComContext->m_pContext;
+
+	if(str_comp(pResult->GetString(0), pSelf->Server()->ClientName(pComContext->m_ClientID)) == 0)
+		return; // you can't whisper your self!
+
+	int Target = -1;
+	for(int i = 0; i < MAX_CLIENTS; i ++)
+	{
+		if(pSelf->m_apPlayers[i])
+		{
+			if(str_comp(pResult->GetString(0), pSelf->Server()->ClientName(i)) == 0)
+			{
+				Target = i;
+				break;
+			}
+		}
+	}
+
+	if(Target == -1)
+		return;
+
+	pSelf->SendChat(pComContext->m_ClientID, CHAT_WHISPER, Target, pResult->GetString(1));
+}
+
 void CGameContext::OnInit()
 {
 	// init everything
@@ -1593,10 +1731,13 @@ void CGameContext::OnInit()
 	m_pConfig = Kernel()->RequestInterface<IConfigManager>()->Values();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
+	m_pNetConverter = Kernel()->RequestInterface<INetConverter>();
 	m_World.SetGameServer(this);
 	m_Events.SetGameServer(this);
 	m_CommandManager.Init(m_pConsole, this, NewCommandHook, RemoveCommandHook);
 
+	m_pNetConverter->Init(this);
+	
 	// HACK: only set static size for items, which were available in the first 0.7 release
 	// so new items don't break the snapshot delta
 	static const int OLD_NUM_NETOBJTYPES = 23;
@@ -1621,6 +1762,12 @@ void CGameContext::OnInit()
 		m_pController = new CGameControllerDM(this);
 
 	m_pController->RegisterChatCommands(CommandManager());
+
+	CommandManager()->AddCommand("w", "Whisper another player", "s[playername] r[text]", ComWhisper, this);
+	CommandManager()->AddCommand("whisper", "Whisper another player", "s[playername] r[text]", ComWhisper, this);
+
+	CommandManager()->AddCommand("lang", "Setting your language", "?s[text]", ComLanguage, this);
+	CommandManager()->AddCommand("language", "Setting your language", "?s[text]", ComLanguage, this);
 
 	// create all entities from the game layer
 	CMapItemLayerTilemap *pTileMap = m_Layers.GameLayer();
@@ -1727,8 +1874,170 @@ bool CGameContext::IsClientSpectator(int ClientID) const
 
 const char *CGameContext::GameType() const { return m_pController && m_pController->GetGameType() ? m_pController->GetGameType() : ""; }
 const char *CGameContext::Version() const { return GAME_VERSION; }
-const char *CGameContext::NetVersion() const { return GAME_NETVERSION; }
+
+const char *CGameContext::NetVersion(int Protocol) const 
+{ 
+	return (Protocol == NETPROTOCOL_SIX) ? GAME_NETVERSION6 : GAME_NETVERSION; 
+}
+
 const char *CGameContext::NetVersionHashUsed() const { return GAME_NETVERSION_HASH_FORCED; }
 const char *CGameContext::NetVersionHashReal() const { return GAME_NETVERSION_HASH; }
 
 IGameServer *CreateGameServer() { return new CGameContext; }
+
+void CGameContext::UpdatePlayerSkin(int ClientID, CTeeInfo Skin)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+	if(!m_apPlayers[ClientID])
+		return;
+	if(Skin == m_apPlayers[ClientID]->m_TeeInfos)
+		return;
+
+	mem_copy(&m_apPlayers[ClientID]->m_TeeInfos, &Skin, sizeof(m_apPlayers[ClientID]->m_TeeInfos));
+
+	// update all clients
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		if(!m_apPlayers[i] || (!Server()->ClientIngame(i) && !m_apPlayers[i]->IsDummy()) || Server()->GetClientVersion(i) < MIN_SKINCHANGE_CLIENTVERSION)
+			continue;
+
+		SendSkinChange(ClientID, i);
+	}
+}
+
+#ifdef CONF_DDNETMASTER
+
+static char EscapeJsonChar(char c)
+{
+	switch(c)
+	{
+	case '\"': return '\"';
+	case '\\': return '\\';
+	case '\b': return 'b';
+	case '\n': return 'n';
+	case '\r': return 'r';
+	case '\t': return 't';
+	// Don't escape '\f', who uses that. :)
+	default: return 0;
+	}
+}
+
+static char *EscapeJson(char *pBuffer, int BufferSize, const char *pString)
+{
+	dbg_assert(BufferSize > 0, "can't null-terminate the string");
+	// Subtract the space for null termination early.
+	BufferSize--;
+
+	char *pResult = pBuffer;
+	while(BufferSize && *pString)
+	{
+		char c = *pString;
+		pString++;
+		char Escaped = EscapeJsonChar(c);
+		if(Escaped)
+		{
+			if(BufferSize < 2)
+			{
+				break;
+			}
+			*pBuffer++ = '\\';
+			*pBuffer++ = Escaped;
+			BufferSize -= 2;
+		}
+		// Assuming ASCII/UTF-8, "if control character".
+		else if((unsigned char)c < 0x20)
+		{
+			// \uXXXX
+			if(BufferSize < 6)
+			{
+				break;
+			}
+			str_format(pBuffer, BufferSize, "\\u%04x", c);
+			pBuffer += 6;
+			BufferSize -= 6;
+		}
+		else
+		{
+			*pBuffer++ = c;
+			BufferSize--;
+		}
+	}
+	*pBuffer = 0;
+	return pResult;
+}
+
+void CGameContext::OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID)
+{
+	if(BufSize <= 0)
+		return;
+
+	aBuf[0] = '\0';
+
+	if(!m_apPlayers[ID])
+		return;
+
+	char aCSkinName[64];
+
+	CTeeInfo &TeeInfo = m_apPlayers[ID]->m_TeeInfos;
+
+	char aJsonSkin[400];
+	aJsonSkin[0] = '\0';
+
+	if(Server()->ClientProtocol(ID) == NETPROTOCOL_SIX)
+	{
+		// 0.6
+		if(TeeInfo.m_UseCustomColor)
+		{
+			str_format(aJsonSkin, sizeof(aJsonSkin),
+				"\"name\":\"%s\","
+				"\"color_body\":%d,"
+				"\"color_feet\":%d",
+				EscapeJson(aCSkinName, sizeof(aCSkinName), TeeInfo.m_aSkinName),
+				TeeInfo.m_ColorBody,
+				TeeInfo.m_ColorFeet);
+		}
+		else
+		{
+			str_format(aJsonSkin, sizeof(aJsonSkin),
+				"\"name\":\"%s\"",
+				EscapeJson(aCSkinName, sizeof(aCSkinName), TeeInfo.m_aSkinName));
+		}
+	}
+	else if(Server()->ClientProtocol(ID) == NETPROTOCOL_SEVEN)
+	{
+		const char *apPartNames[NUM_SKINPARTS] = {"body", "marking", "decoration", "hands", "feet", "eyes"};
+		char aPartBuf[64];
+
+		for(int i = 0; i < NUM_SKINPARTS; ++i)
+		{
+			str_format(aPartBuf, sizeof(aPartBuf),
+				"%s\"%s\":{"
+				"\"name\":\"%s\"",
+				i == 0 ? "" : ",",
+				apPartNames[i],
+				EscapeJson(aCSkinName, sizeof(aCSkinName), TeeInfo.m_apSkinPartNames[i]));
+
+			str_append(aJsonSkin, aPartBuf, sizeof(aJsonSkin));
+
+			if(TeeInfo.m_aUseCustomColors[i])
+			{
+				str_format(aPartBuf, sizeof(aPartBuf),
+					",\"color\":%d",
+					TeeInfo.m_aSkinPartColors[i]);
+				str_append(aJsonSkin, aPartBuf, sizeof(aJsonSkin));
+			}
+			str_append(aJsonSkin, "}", sizeof(aJsonSkin));
+		}
+	}
+
+	str_format(aBuf, BufSize,
+		",\"skin\":{"
+		"%s"
+		"},"
+		"\"afk\":false,"
+		"\"team\":%d",
+		aJsonSkin,
+		m_apPlayers[ID]->GetTeam());
+}
+#endif

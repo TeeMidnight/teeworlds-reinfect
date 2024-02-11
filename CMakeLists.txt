@@ -72,6 +72,7 @@ option(DOWNLOAD_DEPENDENCIES "Download dependencies (only available on Windows)"
 option(DOWNLOAD_GTEST "Download and compile GTest if not found" ${AUTO_DEPENDENCIES_DEFAULT})
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
 option(DEV "Don't generate stuff necessary for packaging" OFF)
+option(DDNETMASTER "Compile server with ddnet master" OFF)
 
 set(OpenGL_GL_PREFERENCE GLVND)
 
@@ -306,6 +307,7 @@ find_package(Pnglite)
 find_package(SDL2)
 find_package(Threads)
 find_package(Wavpack)
+find_package(Curl)
 
 
 if(TARGET_OS AND TARGET_OS STREQUAL "mac")
@@ -358,9 +360,14 @@ show_dependency_status("Python3" Python3)
 show_dependency_status("SDL2" SDL2)
 show_dependency_status("Wavpack" WAVPACK)
 show_dependency_status("Zlib" ZLIB)
+show_dependency_status("Curl" CURL)
 
 if(NOT(Python3_FOUND))
   message(SEND_ERROR "You must install Python to compile Teeworlds")
+endif()
+
+if(DDNETMASTER AND NOT(CURL_FOUND))
+  message(SEND_ERROR "You must install Curl to compile teeworlds with ddnet master")
 endif()
 
 if(CLIENT AND NOT(FREETYPE_FOUND))
@@ -980,8 +987,27 @@ set(EXPECTED_DATA
   maps/license.txt
   maps/lms1.map
   maps/readme.txt
+  maps6/ctf1.map
+  maps6/ctf2.map
+  maps6/ctf3.map
+  maps6/ctf4.map
+  maps6/ctf5.map
+  maps6/ctf6.map
+  maps6/ctf7.map
+  maps6/dm1.map
+  maps6/dm2.map
+  maps6/dm6.map
+  maps6/dm7.map
+  maps6/dm8.map
+  maps6/dm9.map
+  maps6/license.txt
+  maps6/lms1.map
+  maps6/readme.txt
   particles.png
   race_flag.png
+  server_lang/index.json
+  server_lang/zh-CN.json
+  server_lang/zh-TW.json
   skins/beaver.json
   skins/bluekitty.json
   skins/bluestripe.json
@@ -1152,24 +1178,6 @@ set(EXPECTED_DATA
   ui/themes/winter_night.map
 )
 
-if(NOT EXISTS ${PROJECT_SOURCE_DIR}/datasrc/languages/index.json)
-  message(WARNING "Missing datasrc/languages submodule. Please download a source release or update your git submodules with `git submodule update --init`")
-  foreach(item ${EXPECTED_DATA})
-    if(item MATCHES "^languages/")
-      list(REMOVE_ITEM EXPECTED_DATA ${item})
-    endif()
-  endforeach()
-endif()
-
-if(NOT EXISTS ${PROJECT_SOURCE_DIR}/datasrc/maps/dm1.map)
-  message(WARNING "Missing datasrc/maps submodule. Please download a source release or update your git submodules with `git submodule update --init`")
-  foreach(item ${EXPECTED_DATA})
-    if(item MATCHES "^maps/")
-      list(REMOVE_ITEM EXPECTED_DATA ${item})
-    endif()
-  endforeach()
-endif()
-
 set_glob(DATA GLOB_RECURSE "json;map;png;rules;ttc;ttf;txt;wv" datasrc ${EXPECTED_DATA})
 
 ########################################################################
@@ -1214,6 +1222,37 @@ function(generate_source output_file script_parameter)
   )
 endfunction()
 
+function(generate_source6 output_file script_parameter)
+  add_custom_command(OUTPUT ${output_file}
+    COMMAND ${Python3_EXECUTABLE} -m datasrc.cross.compile ${script_parameter}
+      > "${PROJECT_BINARY_DIR}/${output_file}"
+    DEPENDS
+      datasrc/cross/compile.py
+      datasrc/cross/content.py
+      datasrc/cross/datatypes.py
+      datasrc/cross/network.py
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  )
+endfunction()
+
+function(generate_maps output_file script_parameter)
+  add_custom_command(OUTPUT ${output_file}
+    COMMAND ${Python3_EXECUTABLE} datasrc/crosscompile.py ${script_parameter}
+      > "${PROJECT_BINARY_DIR}/${output_file}"
+    DEPENDS
+      datasrc/crosscompile.py
+      datasrc/compile.py
+      datasrc/content.py
+      datasrc/datatypes.py
+      datasrc/network.py
+      datasrc/cross/compile.py
+      datasrc/cross/content.py
+      datasrc/cross/datatypes.py
+      datasrc/cross/network.py
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  )
+endfunction()
+
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/src/generated/")
 if(GIT_FOUND)
   execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --git-dir
@@ -1251,6 +1290,13 @@ generate_source("src/generated/protocol.h" "network_header")
 generate_source("src/generated/server_data.cpp" "server_content_source")
 generate_source("src/generated/server_data.h" "server_content_header")
 
+generate_source6("src/generated/protocol6.cpp" "network_source")
+generate_source6("src/generated/protocol6.h" "network_header")
+generate_source6("src/generated/client_data6.cpp" "client_content_source")
+generate_source6("src/generated/client_data6.h" "client_content_header")
+
+generate_maps("src/generated/protocolglue.h" "map_header")
+generate_maps("src/generated/protocolglue.cpp" "map_source")
 
 ########################################################################
 # SHARED
@@ -1266,6 +1312,7 @@ set_src(BASE GLOB_RECURSE src/base
   hash_ctxt.h
   hash_libtomcrypt.c
   hash_openssl.c
+  lock.h
   math.h
   system.c
   system.h
@@ -1294,6 +1341,7 @@ set_src(ENGINE_INTERFACE GLOB src/engine
   mapchecker.h
   masterserver.h
   message.h
+  netconverter.h
   server.h
   serverbrowser.h
   sound.h
@@ -1317,6 +1365,8 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   engine.cpp
   filecollection.cpp
   filecollection.h
+  http.cpp
+  http.h
   huffman.cpp
   huffman.h
   jobs.cpp
@@ -1345,13 +1395,26 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   packer.cpp
   packer.h
   protocol.h
+  protocol6.h
   ringbuffer.cpp
   ringbuffer.h
   snapshot.cpp
   snapshot.h
   storage.cpp
+  uuid.cpp 
+  uuid.h
 )
-set(ENGINE_GENERATED_SHARED src/generated/nethash.cpp src/generated/protocol.cpp src/generated/protocol.h)
+
+set(ENGINE_GENERATED_SHARED 
+  src/generated/nethash.cpp
+  src/generated/protocolglue.cpp
+  src/generated/protocolglue.h
+  src/generated/protocol6.cpp
+  src/generated/protocol6.h
+  src/generated/protocol.cpp 
+  src/generated/protocol.h
+)
+
 set_src(GAME_SHARED GLOB src/game
   collision.cpp
   collision.h
@@ -1370,6 +1433,8 @@ set(GAME_GENERATED_SHARED
   src/generated/git_revision.cpp
   src/generated/nethash.cpp
   src/generated/protocol.h
+  src/generated/protocol6.h
+  src/generated/protocolglue.h
 )
 
 set(DEPS ${DEP_JSON} ${DEP_MD5} ${ZLIB_DEP})
@@ -1377,6 +1442,12 @@ set(DEPS ${DEP_JSON} ${DEP_MD5} ${ZLIB_DEP})
 # Libraries
 set(LIBS ${CMAKE_THREAD_LIBS_INIT} ${ZLIB_LIBRARIES} ${CRYPTO_LIBRARIES} ${PLATFORM_LIBS})
 
+if(DDNETMASTER)
+  set(LIBS
+    ${LIBS}
+    ${CURL_LIBRARIES}
+  )
+endif()
 # Targets
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_GENERATED_SHARED} ${BASE})
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
@@ -1586,6 +1657,9 @@ endif()
 
 # Sources
 set_src(ENGINE_SERVER GLOB src/engine/server
+  netconverter.cpp
+  netconverter.h
+  register-ddnet.cpp
   register.cpp
   register.h
   server.cpp
@@ -1625,8 +1699,12 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   gamemodes/tdm.h
   gameworld.cpp
   gameworld.h
+  localization.cpp
+  localization.h
   player.cpp
   player.h
+  teeinfo.cpp
+  teeinfo.h
 )
 set(GAME_GENERATED_SERVER
   src/generated/server_data.cpp
@@ -1962,6 +2040,7 @@ if(CLIENT AND (DMGTOOLS_FOUND OR HDIUTIL))
 
     # SERVER
     COMMAND ${CMAKE_COMMAND} -E copy_directory data/maps ${DMG_TMPDIR}/${TARGET_SERVER}.app/Contents/Resources/data/maps
+    COMMAND ${CMAKE_COMMAND} -E copy_directory data/maps6 ${DMG_TMPDIR}/${TARGET_SERVER}.app/Contents/Resources/data/maps6
     COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/other/icons/${TARGET_SERVER}.icns ${DMG_TMPDIR}/${TARGET_SERVER}.app/Contents/Resources/
     COMMAND ${CMAKE_COMMAND} -E copy bundle/server/Info.plist ${PROJECT_SOURCE_DIR}/other/bundle/server/PkgInfo ${DMG_TMPDIR}/${TARGET_SERVER}.app/Contents/
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${TARGET_SERVER}> $<TARGET_FILE:${TARGET_SERVER_LAUNCHER}> ${DMG_TMPDIR}/${TARGET_SERVER}.app/Contents/MacOS/
@@ -2136,6 +2215,10 @@ foreach(target ${TARGETS_OWN})
   endif()
   if(HEADLESS_CLIENT)
     target_compile_definitions(${target} PRIVATE CONF_HEADLESS_CLIENT)
+  endif()
+  if(DDNETMASTER)
+    target_compile_definitions(${target} PRIVATE CONF_DDNETMASTER)
+    target_include_directories(${target} PRIVATE ${CURL_INCLUDE_DIRS})
   endif()
 endforeach()
 

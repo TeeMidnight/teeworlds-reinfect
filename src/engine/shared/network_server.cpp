@@ -1,5 +1,6 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <base/hash_ctxt.h>
 #include <base/math.h>
 #include <base/system.h>
 
@@ -8,6 +9,25 @@
 #include "netban.h"
 #include "network.h"
 
+#include "protocol6.h"
+
+static TOKEN ToSecurityToken(const unsigned char *pData)
+{
+	return (int)pData[0] | (pData[1] << 8) | (pData[2] << 16) | (pData[3] << 24);
+}
+
+TOKEN CNetServer::GetGlobalToken() const
+{
+	static NETADDR NullAddr = {0};
+	SHA256_CTX Sha256;
+	sha256_init(&Sha256);
+	sha256_update(&Sha256, (unsigned char *)m_aSecurityTokenSeed, sizeof(m_aSecurityTokenSeed));
+	sha256_update(&Sha256, (unsigned char *)&NullAddr, 20); // omit port, bad idea!
+
+	TOKEN SecurityToken = ToSecurityToken(sha256_finish(&Sha256).data);
+
+	return SecurityToken;
+}
 
 bool CNetServer::Open(NETADDR BindAddr, CConfig *pConfig, IConsole *pConsole, IEngine *pEngine, CNetBan *pNetBan,
 	int MaxClients, int MaxClientsPerIP, NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser)
@@ -30,6 +50,8 @@ bool CNetServer::Open(NETADDR BindAddr, CConfig *pConfig, IConsole *pConsole, IE
 	m_NumClients = 0;
 	SetMaxClients(MaxClients);
 	SetMaxClientsPerIP(MaxClientsPerIP);
+
+	secure_random_fill(m_aSecurityTokenSeed, sizeof(m_aSecurityTokenSeed));
 
 	for(int i = 0; i < NET_MAX_CLIENTS; i++)
 		m_aSlots[i].m_Connection.Init(this, true);
@@ -101,11 +123,13 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 
 		// TODO: empty the recvinfo
 		NETADDR Addr;
-		int Result = UnpackPacket(&Addr, m_RecvUnpacker.m_aBuffer, &m_RecvUnpacker.m_Data);
+		int Protocol = NETPROTOCOL_UNKNOWN;
+		int Size = 0;
+		int Result = UnpackPacket(&Addr, m_RecvUnpacker.m_aBuffer, &m_RecvUnpacker.m_Data, Protocol, &Size);
 		// no more packets for now
 		if(Result > 0)
 			break;
-
+		
 		if(!Result)
 		{
 			// check for bans
@@ -117,7 +141,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 				int Time = time_timestamp();
 				if(LastInfoQuery + 5 < Time)
 				{
-					SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1);
+					SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, Protocol);
 				}
 				continue;
 			}
@@ -131,6 +155,13 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 
 				if(net_addr_comp(m_aSlots[i].m_Connection.PeerAddress(), &Addr, true) == 0)
 				{
+					if(Protocol != m_aSlots[i].m_Connection.Protocol())
+					{
+						Protocol = m_aSlots[i].m_Connection.Protocol();
+						if(UnpackPacket(m_RecvUnpacker.m_aBuffer, Size, &m_RecvUnpacker.m_Data, Protocol) != 0)
+							break;
+					}
+
 					if(m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr))
 					{
 						if(m_RecvUnpacker.m_Data.m_DataSize)
@@ -158,7 +189,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 				continue;
 
 			int Accept = m_TokenManager.ProcessMessage(&Addr, &m_RecvUnpacker.m_Data);
-			if(Accept <= 0)
+			if((Protocol == NETPROTOCOL_SEVEN) && Accept <= 0)
 				continue;
 
 			if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONTROL)
@@ -169,7 +200,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 					if(m_NumClients >= m_MaxClients)
 					{
 						const char FullMsg[] = "This server is full";
-						SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, FullMsg, sizeof(FullMsg));
+						SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, FullMsg, sizeof(FullMsg), Protocol);
 						continue;
 					}
 
@@ -188,7 +219,7 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 							{
 								char aBuf[128];
 								str_format(aBuf, sizeof(aBuf), "Only %d players with the same IP are allowed", m_MaxClientsPerIP);
-								SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1);
+								SendControlMsg(&Addr, m_RecvUnpacker.m_Data.m_ResponseToken, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, Protocol);
 								Continue = true;
 								break;
 							}
@@ -203,10 +234,12 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 						if(m_aSlots[i].m_Connection.State() == NET_CONNSTATE_OFFLINE)
 						{
 							m_NumClients++;
+							
 							m_aSlots[i].m_Connection.SetToken(m_RecvUnpacker.m_Data.m_Token);
+							m_aSlots[i].m_Connection.SetProtocol(Protocol);
 							m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr);
 							if(m_pfnNewClient)
-								m_pfnNewClient(i, m_UserPtr);
+								m_pfnNewClient(i, m_UserPtr, Protocol);
 							break;
 						}
 					}
@@ -217,10 +250,18 @@ int CNetServer::Recv(CNetChunk *pChunk, TOKEN *pResponseToken)
 			else if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONNLESS)
 			{
 				pChunk->m_Flags = NETSENDFLAG_CONNLESS;
+				if(Protocol == NETPROTOCOL_SIX)
+					pChunk->m_Flags |= NETSENDFLAG_SIX;
 				pChunk->m_ClientID = -1;
 				pChunk->m_Address = Addr;
 				pChunk->m_DataSize = m_RecvUnpacker.m_Data.m_DataSize;
 				pChunk->m_pData = m_RecvUnpacker.m_Data.m_aChunkData;
+				
+				if(m_RecvUnpacker.m_Data.m_Flags & NET_PACKETFLAG_EXTENDED)
+				{
+					pChunk->m_Flags |= NETSENDFLAG_EXTENDED;
+					mem_copy(pChunk->m_aExtraData, m_RecvUnpacker.m_Data.m_aExtraData, sizeof(pChunk->m_aExtraData));
+				}
 				if(pResponseToken)
 					*pResponseToken = m_RecvUnpacker.m_Data.m_ResponseToken;
 				return 1;
@@ -302,6 +343,29 @@ int CNetServer::Send(CNetChunk *pChunk, TOKEN Token)
 			Drop(pChunk->m_ClientID, "Error sending data");
 		}
 	}
+	return 0;
+}
+
+static const unsigned char NET_HEADER_EXTENDED[] = {'x', 'e'};
+int CNetServer::SendConnlessSevenDown(CNetChunk *pChunk)
+{
+	if(pChunk->m_DataSize >= NET_MAX_PACKETSIZE - 6)
+		return -1;
+
+	unsigned char aBuffer[NET_MAX_PACKETSIZE];
+	const int DATA_OFFSET = 6;
+	if(pChunk->m_Flags&NETSENDFLAG_EXTENDED)
+	{
+		mem_copy(aBuffer, NET_HEADER_EXTENDED, sizeof(NET_HEADER_EXTENDED));
+		mem_copy(aBuffer + sizeof(NET_HEADER_EXTENDED), pChunk->m_aExtraData, 4);
+	}
+	else
+	{
+		for(int i = 0; i < DATA_OFFSET; i++)
+			aBuffer[i] = 0xff;
+	}
+	mem_copy(aBuffer + DATA_OFFSET, pChunk->m_pData, pChunk->m_DataSize);
+	net_udp_send(*Socket(), &pChunk->m_Address, aBuffer, pChunk->m_DataSize + DATA_OFFSET);
 	return 0;
 }
 

@@ -1763,6 +1763,7 @@ void CClient::Update()
 
 void CClient::VersionUpdate()
 {
+	/*
 	if(m_VersionInfo.m_State == CVersionInfo::STATE_INIT)
 	{
 		Engine()->HostLookup(&m_VersionInfo.m_VersionServeraddr, Config()->m_ClVersionServer, m_ContactClient.NetType());
@@ -1793,6 +1794,7 @@ void CClient::VersionUpdate()
 				m_VersionInfo.m_State = CVersionInfo::STATE_ERROR;
 		}
 	}
+	*/
 }
 
 void CClient::RegisterInterfaces()

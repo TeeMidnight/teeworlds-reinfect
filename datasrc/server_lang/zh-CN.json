@@ -1,0 +1,184 @@
+{
+"translated strings": [
+	{
+		"key": "'%s' called for vote to kick '%s' (%s)",
+		"value": "'%s' 发起投票想要踢除 '%s' (%s)"
+	},
+	{
+		"key": "'%s' called for vote to move '%s' to spectators (%s)",
+		"value": "'%s' 发起投票想要将 '%s' 移至旁观位 (%s)"
+	},
+	{
+		"key": "'%s' called vote to change server option '%s' (%s)",
+		"value": "'%s' 发起投票想要改变服务器设置 '%s' (%s)"
+	},
+	{
+		"key": "'%s' entered and joined the blue team",
+		"value": "'%s' 已连接并加入了蓝队"
+	},
+	{
+		"key": "'%s' entered and joined the game",
+		"value": "'%s' 已连接并加入了游戏"
+	},
+	{
+		"key": "'%s' entered and joined the red team",
+		"value": "'%s' 已连接并加入了红队"
+	},
+	{
+		"key": "'%s' entered and joined the spectators",
+		"value": "'%s' 已连接并加入了旁观位"
+	},
+	{
+		"key": "'%s' finished in: %s",
+		"value": "'%s' 用时%s完成"
+	},
+	{
+		"key": "'%s' has left the game",
+		"value": "'%s' 离开了游戏"
+	},
+	{
+		"key": "'%s' has left the game (%s)",
+		"value": "'%s' 离开了游戏 (%s)"
+	},
+	{
+		"key": "'%s' has set a new map record: %s",
+		"value": "'%s' 打破了地图最高记录：%s"
+	},
+	{
+		"key": "'%s' has set a new personal record: %s",
+		"value": "'%s' 打破了个人最高记录：%s"
+	},
+	{
+		"key": "'%s' initiated a pause",
+		"value": "'%s' 暂停了游戏"
+	},
+	{
+		"key": "'%s' joined the blue team",
+		"value": "'%s' 加入了蓝队"
+	},
+	{
+		"key": "'%s' joined the game",
+		"value": "'%s' 加入了游戏"
+	},
+	{
+		"key": "'%s' joined the red team",
+		"value": "'%s' 加入了红队"
+	},
+	{
+		"key": "'%s' joined the spectators",
+		"value": "'%s' 加入了旁观位"
+	},
+	{
+		"key": "Admin forced server option '%s' (%s)",
+		"value": "管理员强制修改了服务器设置 '%s' (%s)"
+	},
+	{
+		"key": "Admin forced vote no",
+		"value": "管理员强制否决了投票"
+	},
+	{
+		"key": "Admin forced vote yes",
+		"value": "管理员强制通过了投票"
+	},
+	{
+		"key": "Admin moved '%s' to spectator (%s)",
+		"value": "管理员将 '%s' 移至了旁观位 (%s)"
+	},
+	{
+		"key": "All players were moved to the blue team",
+		"value": "所有玩家被移入蓝队"
+	},
+	{
+		"key": "All players were moved to the game",
+		"value": "所有玩家被移入游戏"
+	},
+	{
+		"key": "All players were moved to the red team",
+		"value": "所有玩家被移入红队"
+	},
+	{
+		"key": "All players were moved to the spectators",
+		"value": "所有玩家被移入旁观位"
+	},
+	{
+		"key": "Invalid spectator id used",
+		"value": "无效的旁观ID"
+	},
+	{
+		"key": "No such language",
+		"value": "没有此语言"
+	},
+	{
+		"key": "Successfully changed language to English",
+		"value": "成功切换到简体中文"
+	},
+	{
+		"key": "Teams are locked",
+		"value": "队伍被锁定"
+	},
+	{
+		"key": "Teams are locked. Time to wait before changing team: %02d:%02d",
+		"value": "队伍已锁定。还有%02d:%02d才能更换队伍"
+	},
+	{
+		"key": "Teams have been balanced",
+		"value": "双方队伍已被平衡分配"
+	},
+	{
+		"key": "Teams were shuffled",
+		"value": "双方队伍已被随机重组"
+	},
+	{
+		"key": "Teams were swapped",
+		"value": "双方队伍已被交换"
+	},
+	{
+		"key": "The blue flag was captured by '%s'",
+		"value": "蓝队旗帜被 '%s' 夺取"
+	},
+	{
+		"key": "The blue flag was captured by '%s' (%.2f seconds)",
+		"value": "蓝队旗帜被 '%s' 夺取（%.2f秒）"
+	},
+	{
+		"key": "The red flag was captured by '%s'",
+		"value": "红队旗帜被 '%s' 夺取"
+	},
+	{
+		"key": "The red flag was captured by '%s' (%.2f seconds)",
+		"value": "红队旗帜被 '%s' 夺取（%.2f秒）"
+	},
+	{
+		"key": "Vote aborted",
+		"value": "投票已中止"
+	},
+	{
+		"key": "Vote failed",
+		"value": "投票已否决"
+	},
+	{
+		"key": "Vote passed",
+		"value": "投票已通过"
+	},
+	{
+		"key": "Whisper",
+		"value": "私聊"
+	},
+	{
+		"key": "You must reconnect to change identity.",
+		"value": "你必须重新连接以更改身份"
+	},
+	{
+		"key": "You were moved to the blue team due to team balancing",
+		"value": "为了队伍平衡，你被移入蓝队"
+	},
+	{
+		"key": "You were moved to the red team due to team balancing",
+		"value": "为了队伍平衡，你被移入红队"
+	},
+	{
+		"key": "use /language <Code> change your language",
+		"value": "使用/language <语言> 切换你的语言"
+	}
+]
+}

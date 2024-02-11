@@ -7,6 +7,16 @@
 #include <game/client/component.h>
 #include <engine/shared/jobs.h>
 
+class CSoundLoading : public IJob
+{
+	CGameClient *m_pGameClient;
+	bool m_Render;
+
+public:
+	CSoundLoading(CGameClient *pGameClient, bool Render);
+	void Run() override;
+};
+
 class CSounds : public CComponent
 {
 	enum
@@ -20,7 +30,7 @@ class CSounds : public CComponent
 	} m_aQueue[QUEUE_SIZE];
 	int m_QueuePos;
 	int64 m_QueueWaitTime;
-	class CJob m_SoundJob;
+	std::shared_ptr<CSoundLoading> m_pSoundJob;
 	bool m_WaitForSoundJob;
 	
 	ISound::CSampleHandle GetSampleId(int SetId);

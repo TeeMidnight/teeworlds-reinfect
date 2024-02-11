@@ -8,6 +8,11 @@
 #include <engine/server.h>
 #include <engine/shared/memheap.h>
 
+#ifdef CONF_DDNETMASTER
+	#include <vector>
+	#include <memory>
+#endif
+
 class CSnapIDPool
 {
 	enum
@@ -67,13 +72,15 @@ class CServer : public IServer
 	class CConfig *m_pConfig;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	class INetConverter *m_pNetConverter;
 public:
 	class IGameServer *GameServer() { return m_pGameServer; }
 	class CConfig *Config() { return m_pConfig; }
 	class IConsole *Console() { return m_pConsole; }
 	class IStorage *Storage() { return m_pStorage; }
+	class INetConverter *NetConverter() { return m_pNetConverter; }
 
-	enum
+	enum 
 	{
 		AUTHED_NO=0,
 		AUTHED_MOD,
@@ -140,6 +147,22 @@ public:
 		int m_MapListEntryToSend;
 
 		void Reset();
+
+		int MapType() const 
+		{
+			return (m_Protocol == NETPROTOCOL_SIX) ? MAPTYPE_SIX : MAPTYPE_SEVEN;
+		}
+
+#ifdef CONF_DDNETMASTER
+		bool IncludedInServerInfo() const
+		{
+			return m_State != STATE_EMPTY;
+		}
+#endif
+
+		int m_Protocol;
+
+		int m_LanguageCode;
 	};
 
 	CClient m_aClients[MAX_CLIENTS];
@@ -166,13 +189,35 @@ public:
 	enum
 	{
 		MAP_CHUNK_SIZE=NET_MAX_PAYLOAD-NET_MAX_CHUNKHEADERSIZE-4, // msg type
+
+		MAPTYPE_SEVEN = 0,
+		MAPTYPE_SIX,
+		NUM_MAPTYPES
 	};
+
+	struct CMapInfo
+	{
+		SHA256_DIGEST m_MapSha256;
+		unsigned m_MapCrc;
+		unsigned char *m_pMapData;
+		int m_MapSize;
+		// add a check to make mapinfo use the same map data in memory
+		bool m_DefaultMap;
+
+		void Reset()
+		{
+			if(m_pMapData && !m_DefaultMap) // if it's not use the same data as 0.7, free it.
+				mem_free(m_pMapData);
+			m_pMapData = 0;
+			m_MapSize = 0;
+			m_DefaultMap = false;
+		}
+	};
+
 	char m_aCurrentMap[64];
-	SHA256_DIGEST m_CurrentMapSha256;
-	unsigned m_CurrentMapCrc;
-	unsigned char *m_pCurrentMapData;
-	int m_CurrentMapSize;
 	int m_MapChunksPerRequest;
+	
+	CMapInfo m_aMapInfos[NUM_MAPTYPES];
 
 	// maplist
 	struct CMapListEntry
@@ -190,14 +235,27 @@ public:
 	int m_GeneratedRconPassword;
 
 	CDemoRecorder m_DemoRecorder;
-	CRegister m_Register;
+	CRegister m_Registers[NUM_REGISTERTYPES];
+
+#ifdef CONF_DDNETMASTER
+	bool m_DDNetRegister;
+	bool m_ServerInfoNeedsUpdate;
+
+	IRegisterDDNet *m_pRegisterDDNet;
+
+	void UpdateRegisterServerInfo();
+
+	void ExpireServerInfo() override;
+#endif
 
 	CServer();
+	~CServer();
 
 	virtual void SetClientName(int ClientID, const char *pName);
 	virtual void SetClientClan(int ClientID, char const *pClan);
 	virtual void SetClientCountry(int ClientID, int Country);
 	virtual void SetClientScore(int ClientID, int Score);
+	virtual void SetClientLanguage(int ClientID, int Language);
 
 	void Kick(int ClientID, const char *pReason);
 
@@ -216,16 +274,18 @@ public:
 	int GetClientInfo(int ClientID, CClientInfo *pInfo) const;
 	void GetClientAddr(int ClientID, char *pAddrStr, int Size) const;
 	int GetClientVersion(int ClientID) const;
+	int GetClientLanguage(int ClientID) const;
 	const char *ClientName(int ClientID) const;
 	const char *ClientClan(int ClientID) const;
 	int ClientCountry(int ClientID) const;
+	int ClientProtocol(int ClientID) const override;
 	bool ClientIngame(int ClientID) const;
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID);
 
 	void DoSnapshot();
 
-	static int NewClientCallback(int ClientID, void *pUser);
+	static int NewClientCallback(int ClientID, void *pUser, int Protocol);
 	static int DelClientCallback(int ClientID, const char *pReason, void *pUser);
 
 	void SendMap(int ClientID);
@@ -244,11 +304,13 @@ public:
 
 	void SendServerInfo(int ClientID);
 	void GenerateServerInfo(CPacker *pPacker, int Token);
+	void GenerateServerInfo6(CPacker *pPacker, int Token, int Type, NETADDR Addr);
 
 	void PumpNetwork();
 
 	virtual void ChangeMap(const char *pMap);
 	const char *GetMapName();
+	int LoadMap(const char *pMapName, int MapType);
 	int LoadMap(const char *pMapName);
 
 	void InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, CConfig *pConfig, IConsole *pConsole);

@@ -5,10 +5,15 @@
 
 #include <engine/shared/packer.h>
 
+static bool g_DefaultConvertMsg = false;
+
 class CMsgPacker : public CPacker
 {
+	int m_Type;
+	bool m_System;
+	bool m_Convert;
 public:
-	CMsgPacker(int Type, bool System = false)
+	CMsgPacker(int Type, bool System = false, bool Convert = g_DefaultConvertMsg)
 	{
 		Reset();
 		if(Type < 0 || Type > 0x3FFFFFFF)
@@ -16,8 +21,18 @@ public:
 			m_Error = true;
 			return;
 		}
-		AddInt((Type << 1) | (System ? 1 : 0));
+		
+		if(!Convert)
+			AddInt((Type << 1) | (System ? 1 : 0));
+
+		m_Type = Type;
+		m_System = System;
+		m_Convert = Convert;
 	}
+
+	int Type() const { return m_Type; }
+	bool System() const { return m_System; }
+	bool Convert() const { return m_Convert; }
 };
 
 class CMsgUnpacker : public CUnpacker

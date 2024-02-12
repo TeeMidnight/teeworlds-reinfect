@@ -47,9 +47,6 @@ void CNetConnection::SetToken(TOKEN Token)
 
 void CNetConnection::SetProtocol(int Protocol)
 {
-	if(State() != NET_CONNSTATE_OFFLINE)
-		return;
-	
 	m_Protocol = Protocol;
 }
 

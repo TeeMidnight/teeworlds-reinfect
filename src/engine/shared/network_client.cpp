@@ -38,12 +38,14 @@ void CNetClient::Close()
 
 int CNetClient::Disconnect(const char *pReason)
 {
+	m_Connection.SetProtocol(NETPROTOCOL_SEVEN);
 	m_Connection.Disconnect(pReason);
 	return 0;
 }
 
 int CNetClient::Update()
 {
+	m_Connection.SetProtocol(NETPROTOCOL_SEVEN);
 	m_Connection.Update();
 	if(m_Connection.State() == NET_CONNSTATE_ERROR)
 		Disconnect(m_Connection.ErrorString());

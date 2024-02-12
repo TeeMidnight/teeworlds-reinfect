@@ -715,7 +715,7 @@ void CGameContext::OnClientEnter(int ClientID)
 		ClientInfoMsg.m_pName = Server()->ClientName(i);
 		ClientInfoMsg.m_pClan = Server()->ClientClan(i);
 		ClientInfoMsg.m_Country = Server()->ClientCountry(i);
-		ClientInfoMsg.m_Silent = false;
+		ClientInfoMsg.m_Silent = true;
 		for(int p = 0; p < NUM_SKINPARTS; p++)
 		{
 			ClientInfoMsg.m_apSkinPartNames[p] = m_apPlayers[i]->m_TeeInfos.m_apSkinPartNames[p];
@@ -732,14 +732,6 @@ void CGameContext::OnClientEnter(int ClientID)
 	// local info
 	NewClientInfoMsg.m_Local = 1;
 	Server()->SendPackMsg(&NewClientInfoMsg, MSGFLAG_VITAL|MSGFLAG_NORECORD, ClientID);
-
-	// send version msg
-	if(!NewClientInfoMsg.m_Silent)
-	{
-		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "'%s' v0x%04x", Server()->ClientName(ClientID), Server()->GetClientVersion(ClientID));
-		SendChat(-1, CHAT_ALL, -1, aBuf);
-	}
 
 	if(Server()->DemoRecorder_IsRecording())
 	{

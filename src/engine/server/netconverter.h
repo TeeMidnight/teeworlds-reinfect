@@ -28,6 +28,7 @@ private:
     CUuid m_SnapItemEx[64];
     int m_NumSnapItemsEx;
     int m_EventID;
+    bool m_aClientLocal[MAX_CLIENTS];
 
 public:
     CNetConverter(IServer *pServer, class CConfig *pConfig);

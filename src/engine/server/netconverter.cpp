@@ -904,7 +904,8 @@ int CNetConverter::DeepMsgConvert6(CMsgPacker *pMsg, int Flags, int ToClientID)
         case NETMSGTYPE_SV_CLIENTINFO:
         {
             Unpacker.GetInt(); // ClientID
-            Unpacker.GetInt(); // Local
+            if(Unpacker.GetInt()) // Local
+                return 0; // do not send
             int Team = Unpacker.GetInt();
             const char* pName = Unpacker.GetString(); // Name
             Unpacker.GetString(); // Clan

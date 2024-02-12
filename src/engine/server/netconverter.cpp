@@ -531,14 +531,32 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
         case NETOBJTYPE_GAMEDATAFLAG:
         {
             CNetObj_GameDataFlag *pObj7 = (CNetObj_GameDataFlag *) pItem;
-            protocol6::CNetObj_GameData *pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->SnapNewItem(protocol6::NETOBJTYPE_GAMEDATA, ID, sizeof(protocol6::CNetObj_GameData)));
-            
+            protocol6::CNetObj_GameData *pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->GetSnapItemData(protocol6::NETOBJTYPE_GAMEDATA, ID));
+            if(!pObj6)
+                pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->SnapNewItem(protocol6::NETOBJTYPE_GAMEDATA, ID, sizeof(protocol6::CNetObj_GameData)));
+
             if(!pObj6)
                 return false;
             pObj6->m_FlagCarrierRed = pObj7->m_FlagCarrierRed;
             pObj6->m_FlagCarrierBlue = pObj7->m_FlagCarrierBlue;
-            pObj6->m_TeamscoreRed = ((IGameController *) pSnapClass)->TeamScore(TEAM_RED);
-            pObj6->m_TeamscoreBlue = ((IGameController *) pSnapClass)->TeamScore(TEAM_BLUE);
+            pObj6->m_TeamscoreRed = pObj6->m_TeamscoreRed;
+            pObj6->m_TeamscoreBlue = pObj6->m_TeamscoreBlue;
+
+            return true;
+        };
+        case NETOBJTYPE_GAMEDATATEAM:
+        {
+            CNetObj_GameDataTeam *pObj7 = (CNetObj_GameDataTeam *) pItem;
+            protocol6::CNetObj_GameData *pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->GetSnapItemData(protocol6::NETOBJTYPE_GAMEDATA, ID));
+            if(!pObj6)
+                pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->SnapNewItem(protocol6::NETOBJTYPE_GAMEDATA, ID, sizeof(protocol6::CNetObj_GameData)));
+
+            if(!pObj6)
+                return false;
+            pObj6->m_FlagCarrierRed = pObj6->m_FlagCarrierRed;
+            pObj6->m_FlagCarrierBlue = pObj6->m_FlagCarrierBlue;
+            pObj6->m_TeamscoreRed = pObj7->m_TeamscoreRed;
+            pObj6->m_TeamscoreBlue = pObj7->m_TeamscoreBlue;
 
             return true;
         };

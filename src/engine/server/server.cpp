@@ -2470,6 +2470,11 @@ void *CServer::SnapNewItem(int Type, int ID, int Size)
 	return ID < 0 ? 0 : m_SnapshotBuilder.NewItem(Type, ID, Size);
 }
 
+void *CServer::GetSnapItemData(int Type, int ID)
+{
+	return m_SnapshotBuilder.GetItemData((Type<<16)|(ID&0xffff));
+}
+
 void CServer::SnapSetStaticsize(int ItemType, int Size)
 {
 	m_SnapshotDelta.SetStaticsize(ItemType, Size);

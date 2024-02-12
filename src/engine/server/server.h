@@ -344,6 +344,7 @@ public:
 	virtual int SnapNewID();
 	virtual void SnapFreeID(int ID);
 	virtual void *SnapNewItem(int Type, int ID, int Size);
+	virtual void *GetSnapItemData(int Type, int ID);
 	void SnapSetStaticsize(int ItemType, int Size);
 };
 

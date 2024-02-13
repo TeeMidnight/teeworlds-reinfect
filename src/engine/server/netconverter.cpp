@@ -548,13 +548,16 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
         {
             CNetObj_GameDataTeam *pObj7 = (CNetObj_GameDataTeam *) pItem;
             protocol6::CNetObj_GameData *pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->GetSnapItemData(protocol6::NETOBJTYPE_GAMEDATA, ID));
+            bool NewCreate = false;
             if(!pObj6)
+            {
                 pObj6 = static_cast<protocol6::CNetObj_GameData *>(Server()->SnapNewItem(protocol6::NETOBJTYPE_GAMEDATA, ID, sizeof(protocol6::CNetObj_GameData)));
-
+                NewCreate = true;
+            }
             if(!pObj6)
                 return false;
-            pObj6->m_FlagCarrierRed = pObj6->m_FlagCarrierRed;
-            pObj6->m_FlagCarrierBlue = pObj6->m_FlagCarrierBlue;
+            pObj6->m_FlagCarrierRed = NewCreate ? FLAG_ATSTAND : pObj6->m_FlagCarrierRed; // did a fake snap for some mode need flag but no carry
+            pObj6->m_FlagCarrierBlue = NewCreate ? FLAG_ATSTAND : pObj6->m_FlagCarrierBlue;
             pObj6->m_TeamscoreRed = pObj7->m_TeamscoreRed;
             pObj6->m_TeamscoreBlue = pObj7->m_TeamscoreBlue;
 

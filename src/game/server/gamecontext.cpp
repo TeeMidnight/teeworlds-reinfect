@@ -317,14 +317,14 @@ void CGameContext::SendSkinChange(int ClientID, int TargetID)
 
 void CGameContext::SendGameMsg(int GameMsgID, int ClientID)
 {
-	CMsgPacker Msg(NETMSGTYPE_SV_GAMEMSG);
+	CMsgPacker Msg(NETMSGTYPE_SV_GAMEMSG, false, true);
 	Msg.AddInt(GameMsgID);
 	Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
 void CGameContext::SendGameMsg(int GameMsgID, int ParaI1, int ClientID)
 {
-	CMsgPacker Msg(NETMSGTYPE_SV_GAMEMSG);
+	CMsgPacker Msg(NETMSGTYPE_SV_GAMEMSG, false, true);
 	Msg.AddInt(GameMsgID);
 	Msg.AddInt(ParaI1);
 	Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
@@ -332,7 +332,7 @@ void CGameContext::SendGameMsg(int GameMsgID, int ParaI1, int ClientID)
 
 void CGameContext::SendGameMsg(int GameMsgID, int ParaI1, int ParaI2, int ParaI3, int ClientID)
 {
-	CMsgPacker Msg(NETMSGTYPE_SV_GAMEMSG);
+	CMsgPacker Msg(NETMSGTYPE_SV_GAMEMSG, false, true);
 	Msg.AddInt(GameMsgID);
 	Msg.AddInt(ParaI1);
 	Msg.AddInt(ParaI2);
@@ -488,7 +488,7 @@ void CGameContext::SendTuningParams(int ClientID)
 {
 	CheckPureTuning();
 
-	CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS);
+	CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS, false, true);
 	int *pParams = (int *)&m_Tuning;
 	for(unsigned i = 0; i < sizeof(m_Tuning) / sizeof(int); i++)
 		Msg.AddInt(pParams[i]);
@@ -1207,7 +1207,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				for(CVoteOptionServer *p = pCurrent; p && NumOptions < MaxOptions; p = p->m_pNext, ++NumOptions);
 
 				// pack and send vote list packet
-				CMsgPacker Msg(NETMSGTYPE_SV_VOTEOPTIONLISTADD);
+				CMsgPacker Msg(NETMSGTYPE_SV_VOTEOPTIONLISTADD, false, true);
 				Msg.AddInt(NumOptions);
 				while(pCurrent && NumOptions--)
 				{

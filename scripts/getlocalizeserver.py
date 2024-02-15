@@ -4,7 +4,7 @@ import re
 Translate = {}
 SortTranslate = {}
 
-Path = "data/server_lang/"
+Path = "datasrc/server_lang/"
 
 def ReadFile(path):
     File = open(path, "r")
@@ -33,9 +33,9 @@ def ReadLanguageFile(path):
 
     try:
         langfile = open(path, "r")
-        data = json.loads(langfile.read())
+        datasrc = json.loads(langfile.read())
 
-        for i in data['translated strings']:
+        for i in datasrc['translated strings']:
             if str(i['key']) in SortTranslate:
                 SortTranslate[str(i['key'])] = str(i["value"])
 
@@ -74,8 +74,8 @@ if __name__ == '__main__':
     languagefiles = ['zh-CN', 'zh-TW']
 
     for filename in languagefiles:
-        if os.path.exists(f"data/languages/{filename}.json") == False:
-            WriteLanguageFile(f"data/languages/{filename}.json")
+        if os.path.exists(f"datasrc/languages/{filename}.json") == False:
+            WriteLanguageFile(f"datasrc/languages/{filename}.json")
         else:
-            ReadLanguageFile(f"data/languages/{filename}.json")
-            WriteLanguageFile(f"data/languages/{filename}.json")
+            ReadLanguageFile(f"datasrc/languages/{filename}.json")
+            WriteLanguageFile(f"datasrc/languages/{filename}.json")

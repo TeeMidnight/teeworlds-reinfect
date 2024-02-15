@@ -74,8 +74,8 @@ if __name__ == '__main__':
     languagefiles = ['zh-CN', 'zh-TW']
 
     for filename in languagefiles:
-        if os.path.exists(f"datasrc/languages/{filename}.json") == False:
-            WriteLanguageFile(f"datasrc/languages/{filename}.json")
+        if os.path.exists(f"datasrc/server_lang/{filename}.json") == False:
+            WriteLanguageFile(f"datasrc/server_lang/{filename}.json")
         else:
-            ReadLanguageFile(f"datasrc/languages/{filename}.json")
-            WriteLanguageFile(f"datasrc/languages/{filename}.json")
+            ReadLanguageFile(f"datasrc/server_lang/{filename}.json")
+            WriteLanguageFile(f"datasrc/server_lang/{filename}.json")

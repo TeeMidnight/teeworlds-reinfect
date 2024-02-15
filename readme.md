@@ -39,8 +39,8 @@ Installing dependencies
     # Fedora
     sudo dnf install @development-tools cmake gcc-c++ git freetype-devel pnglite-devel python3 SDL2-devel wavpack-devel
     
-    # Arch Linux (doesn't have pnglite in its repositories)
-    sudo pacman -S --needed base-devel cmake freetype2 git python sdl2 wavpack
+    # Arch Linux
+    sudo pacman -S --needed base-devel cmake freetype2 git python sdl2 wavpack pnglite
     
     # macOS
     brew install cmake freetype sdl2

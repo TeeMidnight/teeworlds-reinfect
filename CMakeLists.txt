@@ -66,7 +66,7 @@ if(TARGET_OS STREQUAL "windows")
   set(AUTO_DEPENDENCIES_DEFAULT ON)
 endif()
 
-option(CLIENT "Compile client" ON)
+option(CLIENT "Compile client" OFF)
 option(HEADLESS_CLIENT "Build the client without graphics" OFF)
 option(DOWNLOAD_DEPENDENCIES "Download dependencies (only available on Windows)" ${AUTO_DEPENDENCIES_DEFAULT})
 option(DOWNLOAD_GTEST "Download and compile GTest if not found" ${AUTO_DEPENDENCIES_DEFAULT})
@@ -91,7 +91,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   src/game/version.h
 )
 
-set(SERVER_EXECUTABLE teeworlds_srv CACHE STRING "Name of the built server executable")
+set(SERVER_EXECUTABLE Reinfect-Server CACHE STRING "Name of the built server executable")
 set(CLIENT_EXECUTABLE teeworlds CACHE STRING "Name of the build client executable")
 
 ########################################################################
@@ -969,40 +969,7 @@ set(EXPECTED_DATA
   mapres/winter_mountains.png
   mapres/winter_mountains2.png
   mapres/winter_mountains3.png
-  maps/ctf1.map
-  maps/ctf2.map
-  maps/ctf3.map
-  maps/ctf4.map
-  maps/ctf5.map
-  maps/ctf6.map
-  maps/ctf7.map
-  maps/ctf8.map
-  maps/dm1.map
-  maps/dm2.map
-  maps/dm3.map
-  maps/dm6.map
-  maps/dm7.map
-  maps/dm8.map
-  maps/dm9.map
-  maps/license.txt
-  maps/lms1.map
-  maps/readme.txt
-  maps6/ctf1.map
-  maps6/ctf2.map
-  maps6/ctf3.map
-  maps6/ctf4.map
-  maps6/ctf5.map
-  maps6/ctf6.map
-  maps6/ctf7.map
-  maps6/dm1.map
-  maps6/dm2.map
-  maps6/dm6.map
-  maps6/dm7.map
-  maps6/dm8.map
-  maps6/dm9.map
-  maps6/license.txt
-  maps6/lms1.map
-  maps6/readme.txt
+  maps/Death\ Jungle.map
   particles.png
   race_flag.png
   server_lang/index.json
@@ -1685,18 +1652,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   gamecontext.h
   gamecontroller.cpp
   gamecontroller.h
-  gamemodes/ctf.cpp
-  gamemodes/ctf.h
-  gamemodes/dm.cpp
-  gamemodes/dm.h
-  gamemodes/lms.cpp
-  gamemodes/lms.h
-  gamemodes/lts.cpp
-  gamemodes/lts.h
-  gamemodes/mod.cpp
-  gamemodes/mod.h
-  gamemodes/tdm.cpp
-  gamemodes/tdm.h
+  gamemodes/reinfect.cpp
+  gamemodes/reinfect.h
   gameworld.cpp
   gameworld.h
   localization.cpp
@@ -1705,6 +1662,20 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   player.h
   teeinfo.cpp
   teeinfo.h
+  weapon.h
+  weapons/grenade.cpp
+  weapons/grenade.h
+  weapons/gun.cpp
+  weapons/gun.h
+  weapons/hammer.cpp
+  weapons/hammer.h
+  weapons/laser.cpp
+  weapons/laser.h
+  weapons/ninja.cpp
+  weapons/ninja.h
+  weapons/shotgun.cpp
+  weapons/shotgun.h
+  weapons/vanilla.h
 )
 set(GAME_GENERATED_SERVER
   src/generated/server_data.cpp

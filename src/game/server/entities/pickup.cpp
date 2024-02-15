@@ -5,6 +5,8 @@
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 
+#include <game/server/weapons/vanilla.h>
+
 #include "character.h"
 #include "pickup.h"
 
@@ -12,10 +14,16 @@ CPickup::CPickup(CGameWorld *pGameWorld, int Type, vec2 Pos)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_PICKUP, Pos, PickupPhysSize)
 {
 	m_Type = Type;
+	m_Onetime = false;
 
 	Reset();
 
 	GameWorld()->InsertEntity(this);
+}
+
+void CPickup::SetOnetime(bool Onetime)
+{
+	m_Onetime = Onetime;
 }
 
 void CPickup::Reset()
@@ -24,10 +32,14 @@ void CPickup::Reset()
 		m_SpawnTick = Server()->Tick() + Server()->TickSpeed() * g_pData->m_aPickups[m_Type].m_Spawndelay;
 	else
 		m_SpawnTick = -1;
+	m_Picked = false;
 }
 
 void CPickup::Tick()
 {
+	if(m_Onetime && m_Picked)
+		return;
+
 	// wait for respawn
 	if(m_SpawnTick > 0)
 	{
@@ -48,6 +60,7 @@ void CPickup::Tick()
 	{
 		// player picked us up, is someone was hooking us, let them go
 		bool Picked = false;
+		IWeapon *pWeapon = nullptr;
 		switch (m_Type)
 		{
 			case PICKUP_HEALTH:
@@ -67,7 +80,8 @@ void CPickup::Tick()
 				break;
 
 			case PICKUP_GRENADE:
-				if(pChr->GiveWeapon(WEAPON_GRENADE, g_pData->m_Weapons.m_aId[WEAPON_GRENADE].m_Maxammo))
+				pWeapon = new CWeaponGrenade(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_GRENADE, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_GRENADE);
@@ -76,7 +90,8 @@ void CPickup::Tick()
 				}
 				break;
 			case PICKUP_SHOTGUN:
-				if(pChr->GiveWeapon(WEAPON_SHOTGUN, g_pData->m_Weapons.m_aId[WEAPON_SHOTGUN].m_Maxammo))
+				pWeapon = new CWeaponShotgun(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_SHOTGUN, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
@@ -85,12 +100,23 @@ void CPickup::Tick()
 				}
 				break;
 			case PICKUP_LASER:
-				if(pChr->GiveWeapon(WEAPON_LASER, g_pData->m_Weapons.m_aId[WEAPON_LASER].m_Maxammo))
+				pWeapon = new CWeaponLaser(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_LASER, pWeapon))
 				{
 					Picked = true;
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
 					if(pChr->GetPlayer())
 						GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), WEAPON_LASER);
+				}
+				break;
+			case PICKUP_GUN:
+				pWeapon = new CWeaponGun(pChr->GetPlayer()->GetCID());
+				if(pChr->GiveWeapon(WEAPON_GUN, pWeapon))
+				{
+					Picked = true;
+					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_SHOTGUN);
+					if(pChr->GetPlayer())
+						GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), WEAPON_GUN);
 				}
 				break;
 
@@ -125,6 +151,12 @@ void CPickup::Tick()
 			int RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 			if(RespawnTime >= 0)
 				m_SpawnTick = Server()->Tick() + Server()->TickSpeed() * RespawnTime;
+
+			if(m_Onetime)
+				m_Picked = Picked;
+		}else if(pWeapon)
+		{
+			delete pWeapon;
 		}
 	}
 }
@@ -137,6 +169,9 @@ void CPickup::TickPaused()
 
 void CPickup::Snap(int SnappingClient)
 {
+	if(m_Onetime && m_Picked)
+		return;
+
 	if(m_SpawnTick != -1 || NetworkClipped(SnappingClient))
 		return;
 

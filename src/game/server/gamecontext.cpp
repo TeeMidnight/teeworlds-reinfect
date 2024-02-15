@@ -17,12 +17,7 @@
 
 #include "entities/character.h"
 #include "entities/projectile.h"
-#include "gamemodes/ctf.h"
-#include "gamemodes/dm.h"
-#include "gamemodes/lms.h"
-#include "gamemodes/lts.h"
-#include "gamemodes/mod.h"
-#include "gamemodes/tdm.h"
+#include "gamemodes/reinfect.h"
 #include "gamecontext.h"
 #include "localization.h"
 #include "player.h"
@@ -1139,13 +1134,14 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			for(int p = 0; p < NUM_SKINPARTS; p++)
 			{
-				str_utf8_copy_num(pPlayer->m_TeeInfos.m_apSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_apSkinPartNames[p]), MAX_SKIN_LENGTH);
-				pPlayer->m_TeeInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
-				pPlayer->m_TeeInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
+				str_utf8_copy_num(pPlayer->m_TempInfos.m_apSkinPartNames[p], pMsg->m_apSkinPartNames[p], sizeof(pPlayer->m_TeeInfos.m_apSkinPartNames[p]), MAX_SKIN_LENGTH);
+				pPlayer->m_TempInfos.m_aUseCustomColors[p] = pMsg->m_aUseCustomColors[p];
+				pPlayer->m_TempInfos.m_aSkinPartColors[p] = pMsg->m_aSkinPartColors[p];
 			}
 			if(Server()->ClientProtocol(ClientID) == NETPROTOCOL_SEVEN)
-				pPlayer->m_TeeInfos.FromSeven();
+				pPlayer->m_TempInfos.FromSeven();
 
+			/*
 			// update all clients
 			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
@@ -1154,6 +1150,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 				SendSkinChange(pPlayer->GetCID(), i);
 			}
+			*/
 #ifdef CONF_DDNETMASTER
 			Server()->ExpireServerInfo();
 #endif
@@ -1740,18 +1737,7 @@ void CGameContext::OnInit()
 	m_Collision.Init(&m_Layers);
 
 	// select gametype
-	if(str_comp_nocase(Config()->m_SvGametype, "mod") == 0)
-		m_pController = new CGameControllerMOD(this);
-	else if(str_comp_nocase(Config()->m_SvGametype, "ctf") == 0)
-		m_pController = new CGameControllerCTF(this);
-	else if(str_comp_nocase(Config()->m_SvGametype, "lms") == 0)
-		m_pController = new CGameControllerLMS(this);
-	else if(str_comp_nocase(Config()->m_SvGametype, "lts") == 0)
-		m_pController = new CGameControllerLTS(this);
-	else if(str_comp_nocase(Config()->m_SvGametype, "tdm") == 0)
-		m_pController = new CGameControllerTDM(this);
-	else
-		m_pController = new CGameControllerDM(this);
+	m_pController = new CGameControllerReinfect(this);
 
 	m_pController->RegisterChatCommands(CommandManager());
 
@@ -1971,7 +1957,7 @@ void CGameContext::OnUpdatePlayerServerInfo(char *aBuf, int BufSize, int ID)
 
 	char aCSkinName[64];
 
-	CTeeInfo &TeeInfo = m_apPlayers[ID]->m_TeeInfos;
+	CTeeInfo &TeeInfo = m_apPlayers[ID]->m_TempInfos;
 
 	char aJsonSkin[400];
 	aJsonSkin[0] = '\0';

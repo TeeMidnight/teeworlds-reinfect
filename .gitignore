@@ -31,7 +31,7 @@ teeworlds*
 !other/bash-completion/teeworlds
 !teeworlds.manifest
 !teeworlds.rc
-teeworlds_srv*
+Reinfect-Server*
 !other/bash-completion/teeworlds_srv
 testrunner
 versionsrv*

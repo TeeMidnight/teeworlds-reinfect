@@ -82,6 +82,7 @@ public:
 
 	// TODO: clean this up
 	CTeeInfo m_TeeInfos;
+	CTeeInfo m_TempInfos;
 
 	int m_RespawnTick;
 	int m_DieTick;

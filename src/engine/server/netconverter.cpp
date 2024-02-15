@@ -607,6 +607,7 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
                 return false;
             
             pObjDDNet->m_Flags = 0;
+            /*
             if(pFrom->WeaponStat(WEAPON_HAMMER)->m_Got)
                 pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_HAMMER;
             if(pFrom->WeaponStat(WEAPON_GUN)->m_Got)
@@ -619,6 +620,23 @@ bool CNetConverter::DeepSnapConvert6(void *pItem, void *pSnapClass, int Type, in
                 pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_LASER;
             if(pFrom->WeaponStat(WEAPON_NINJA)->m_Got)
                 pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_NINJA;
+            */
+            for(int i = 0; i < NUM_WEAPONS; i ++)
+            {
+                if(!pFrom->Weapons(i))
+                    continue;
+
+                int Type = pFrom->Weapons(i)->GetType();
+                switch (Type)
+                {
+                    case WEAPON_HAMMER: pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_HAMMER; break;
+                    case WEAPON_GUN: pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_GUN; break;
+                    case WEAPON_SHOTGUN: pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_SHOTGUN; break;
+                    case WEAPON_GRENADE: pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_GRENADE; break;
+                    case WEAPON_LASER: pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_LASER; break;
+                    case WEAPON_NINJA: pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_WEAPON_NINJA; break;
+                }
+            }
             if(!GameServer()->Tuning()->m_PlayerCollision)
                 pObjDDNet->m_Flags |= protocol6::CHARACTERFLAG_COLLISION_DISABLED;
             if(!GameServer()->Tuning()->m_PlayerHooking)

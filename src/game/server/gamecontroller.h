@@ -27,6 +27,7 @@ class IGameController
 	void SetPlayersReadyState(bool ReadyState);
 	void CheckReadyStates(int WithoutID = -1);
 
+protected:
 	// balancing
 	enum
 	{
@@ -61,7 +62,7 @@ class IGameController
 	virtual bool DoWincheckMatch();		// returns true when the match is over
 	virtual void DoWincheckRound() {}
 	bool HasEnoughPlayers() const { return (IsTeamplay() && m_aTeamSize[TEAM_RED] > 0 && m_aTeamSize[TEAM_BLUE] > 0) || (!IsTeamplay() && m_aTeamSize[TEAM_RED] > 1); }
-	void ResetGame();
+	virtual void ResetGame();
 	void SetGameState(EGameState GameState, int Timer=0);
 	void StartMatch();
 	void StartRound();

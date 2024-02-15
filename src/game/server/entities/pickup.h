@@ -17,7 +17,11 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
+	void SetOnetime(bool Onetime);
+
 private:
+	bool m_Picked;
+	bool m_Onetime;
 	int m_Type;
 	int m_SpawnTick;
 };

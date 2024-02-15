@@ -105,6 +105,11 @@ void CMenus::RenderStartMenu(CUIRect MainView)
 	Version.VMargin(50.0f, &Version);
 	UI()->DoLabel(&Version, GAME_RELEASE_VERSION, 14.0f, TEXTALIGN_TR);
 
+	CUIRect TSG;
+	MainView.HSplitBottom(50.0f, 0, &TSG);
+	TSG.VMargin(50.0f, &TSG);
+	UI()->DoLabel(&TSG, "Tee's Glue Mod", 14.0f, TEXTALIGN_TL);
+
 	if(str_comp(Client()->LatestVersion(), "0") != 0)
 	{
 		char aBuf[64];

@@ -1214,6 +1214,13 @@ set(COPY_FILES
   ${FREETYPE_COPY_FILES}
   ${SDL2_COPY_FILES}
 )
+if(DDNETMASTER)
+  set(COPY_FILES
+    ${COPY_FILES}
+    ${CURL_COPY_FILES}
+  )
+endif()
+
 file(COPY ${COPY_FILES} DESTINATION .)
 
 ########################################################################

@@ -2574,7 +2574,7 @@ int main(int argc, const char **argv)
 	
 	// 826 = English
 	g_Localization.Init(pConfigManager->Values());
-	g_Localization.LoadIndexFile("./data/languages/index.json", pStorage, pConsole);
+	g_Localization.LoadIndexFile("./data/server_lang/index.json", pStorage, pConsole);
 
 	// restore empty config strings to their defaults
 	pConfigManager->RestoreStrings();

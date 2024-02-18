@@ -1,7 +1,7 @@
-#ifdef CONF_DDNETMASTER
-
 #ifndef ENGINE_SHARED_HTTP_H
 #define ENGINE_SHARED_HTTP_H
+
+#ifdef CONF_DDNETMASTER
 
 #include <base/hash_ctxt.h>
 
@@ -210,6 +210,5 @@ inline std::unique_ptr<CHttpRequest> HttpPostJson(const char *pUrl, class CConfi
 bool HttpInit(IStorage *pStorage);
 void EscapeUrl(char *pBuf, int Size, const char *pStr);
 bool HttpHasIpresolveBug();
-#endif // ENGINE_SHARED_HTTP_H
-
 #endif
+#endif // ENGINE_SHARED_HTTP_H

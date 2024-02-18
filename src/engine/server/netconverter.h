@@ -1,6 +1,5 @@
-
-#ifndef ENGINE_SHARED_NETCONVERTER_H
-#define ENGINE_SHARED_NETCONVERTER_H
+#ifndef ENGINE_SERVER_NETCONVERTER_H
+#define ENGINE_SERVER_NETCONVERTER_H
 
 #include <engine/netconverter.h>
 

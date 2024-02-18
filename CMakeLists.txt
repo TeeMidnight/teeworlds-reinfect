@@ -137,6 +137,23 @@ function(add_c_compiler_flag_if_supported VARIABLE FLAG)
   endif()
 endfunction()
 
+function(add_cxx_compiler_flag_if_supported VARIABLE FLAG)
+  if(ARGC GREATER 2)
+    set(CHECKED_FLAG "${ARGV2}")
+  else()
+    set(CHECKED_FLAG "${FLAG}")
+  endif()
+  string(REGEX REPLACE "[^A-Za-z0-9]" "_" CONFIG_VARIABLE "FLAG_SUPPORTED${CHECKED_FLAG}")
+  check_cxx_compiler_flag("${CHECKED_FLAG}" ${CONFIG_VARIABLE})
+  if(${CONFIG_VARIABLE})
+    if(${VARIABLE})
+      set("${VARIABLE}" "${${VARIABLE}};${FLAG}" PARENT_SCOPE)
+    else()
+      set("${VARIABLE}" "${FLAG}" PARENT_SCOPE)
+    endif()
+  endif()
+endfunction()
+
 if(NOT MSVC)
   # Protect the stack pointer.
   add_c_compiler_flag_if_supported(OUR_FLAGS -fstack-protector-all)
@@ -147,6 +164,9 @@ if(NOT MSVC)
   # Control-flow protection. Should protect against ROP.
   add_c_compiler_flag_if_supported(OUR_FLAGS -fcf-protection)
 
+  if(TARGET_OS STREQUAL "mac")
+    add_cxx_compiler_flag_if_supported(OUR_FLAGS_OWN -std=gnu++17)
+  endif()
   # Inaccurate floating point numbers cause problems on mingw-w64-gcc when
   # compiling for x86, might cause problems elsewhere. So don't store floats
   # in registers but keep them at higher accuracy.
@@ -1161,6 +1181,13 @@ set(COPY_FILES
   ${FREETYPE_COPY_FILES}
   ${SDL2_COPY_FILES}
 )
+if(DDNETMASTER)
+  set(COPY_FILES
+    ${COPY_FILES}
+    ${CURL_COPY_FILES}
+  )
+endif()
+
 file(COPY ${COPY_FILES} DESTINATION .)
 
 ########################################################################

@@ -87,14 +87,14 @@ void CCharacterCore::Reset()
 	m_Death = false;
 }
 
-void CCharacterCore::Tick(bool UseInput)
+void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 {
 	m_TriggeredEvents = 0;
 
 	// get ground state
 	const bool Grounded =
-		m_pCollision->CheckPoint(m_Pos.x+PHYS_SIZE/2, m_Pos.y+PHYS_SIZE/2+5)
-		|| m_pCollision->CheckPoint(m_Pos.x-PHYS_SIZE/2, m_Pos.y+PHYS_SIZE/2+5);
+		m_pCollision->CheckPoint(m_Pos.x+PHYS_SIZE/2, m_Pos.y+PHYS_SIZE/2+5, NoEntities)
+		|| m_pCollision->CheckPoint(m_Pos.x-PHYS_SIZE/2, m_Pos.y+PHYS_SIZE/2+5, NoEntities);
 
 	vec2 TargetDirection = normalize(vec2(m_Input.m_TargetX, m_Input.m_TargetY));
 
@@ -200,7 +200,7 @@ void CCharacterCore::Tick(bool UseInput)
 		// make sure that the hook doesn't go though the ground
 		bool GoingToHitGround = false;
 		bool GoingToRetract = false;
-		int Hit = m_pCollision->IntersectLine(m_HookPos, NewPos, &NewPos, 0);
+		int Hit = m_pCollision->IntersectLine(m_HookPos, NewPos, &NewPos, 0, true);
 		if(Hit)
 		{
 			if(Hit&CCollision::COLFLAG_NOHOOK)
@@ -370,7 +370,7 @@ void CCharacterCore::ResetDragVelocity()
 	m_HookDragVel = vec2(0,0);
 }
 
-void CCharacterCore::Move()
+void CCharacterCore::Move(bool NoEntities)
 {
 	if(!m_pWorld)
 		return;
@@ -380,7 +380,7 @@ void CCharacterCore::Move()
 	m_Vel.x = m_Vel.x*RampValue;
 
 	vec2 NewPos = m_Pos;
-	m_pCollision->MoveBox(&NewPos, &m_Vel, vec2(PHYS_SIZE, PHYS_SIZE), 0, &m_Death);
+	m_pCollision->MoveBox(&NewPos, &m_Vel, vec2(PHYS_SIZE, PHYS_SIZE), 0, &m_Death, NoEntities);
 
 	m_Vel.x = m_Vel.x*(1.0f/RampValue);
 

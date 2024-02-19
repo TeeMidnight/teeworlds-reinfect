@@ -19,6 +19,7 @@ public:
 	virtual void GetType(int Type, int *pStart, int *pNum) { m_DataFile.GetType(Type, pStart, pNum); }
 	virtual void *FindItem(int Type, int ID) { return m_DataFile.FindItem(Type, ID); }
 	virtual int NumItems() { return m_DataFile.NumItems(); }
+	virtual int GetDataSize(int Index) { return m_DataFile.GetDataSize(Index); }
 
 	virtual void Unload()
 	{

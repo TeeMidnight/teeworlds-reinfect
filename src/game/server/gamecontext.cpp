@@ -1764,6 +1764,8 @@ void CGameContext::OnInit()
 		}
 	}
 
+	m_pController->OnMapInit(pTileMap->m_Width, pTileMap->m_Height);
+
 	Console()->Chain("sv_motd", ConchainSpecialMotdupdate, this);
 
 	Console()->Chain("sv_vote_kick", ConchainSettingUpdate, this);

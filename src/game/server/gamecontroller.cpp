@@ -474,6 +474,7 @@ void IGameController::ResetGame()
 {
 	// reset the game
 	GameServer()->m_World.m_ResetRequested = true;
+	GameServer()->Collision()->ClearCollisionRects();
 
 	SetGameState(IGS_GAME_RUNNING);
 	m_GameStartTick = Server()->Tick();

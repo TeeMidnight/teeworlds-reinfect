@@ -174,8 +174,8 @@ public:
 
 	void Init(CWorldCore *pWorld, CCollision *pCollision);
 	void Reset();
-	void Tick(bool UseInput);
-	void Move();
+	void Tick(bool UseInput, bool NoEntities);
+	void Move(bool NoEntities);
 
 	void AddDragVelocity();
 	void ResetDragVelocity();

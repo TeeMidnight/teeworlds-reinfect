@@ -10,6 +10,7 @@ CLayers::CLayers()
 	m_LayersStart = 0;
 	m_pGameGroup = 0;
 	m_pGameLayer = 0;
+	m_pSwitchLayer = 0;
 	m_pMap = 0;
 }
 
@@ -25,6 +26,7 @@ void CLayers::Init(class IKernel *pKernel, IMap *pMap)
 
 void CLayers::InitGameLayer()
 {
+	m_pSwitchLayer = 0;
 	for(int g = 0; g < NumGroups(); g++)
 	{
 		CMapItemGroup *pGroup = GetGroup(g);
@@ -54,7 +56,17 @@ void CLayers::InitGameLayer()
 						m_pGameGroup->m_ClipH = 0;
 					}
 
+					/*
 					return; // there can only be one game layer and game group
+					*/
+				}
+				if(pTilemap->m_Flags & TILESLAYERFLAG_SWITCH)
+				{
+					if(pTilemap->m_Version <= 2)
+					{
+						pTilemap->m_Switch = *((int *)(pTilemap) + 18);
+					}
+					m_pSwitchLayer = pTilemap;
 				}
 			}
 		}

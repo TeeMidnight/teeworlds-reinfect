@@ -109,6 +109,10 @@
 		"value": "任何時間, 都是殭屍時間"
 	},
 	{
+		"key": "Door %d will open in %d seconds!",
+		"value": "%d號門將在%d後打開!"
+	},
+	{
 		"key": "Invalid spectator id used",
 		"value": "無效的旁觀ID"
 	},
@@ -141,6 +145,10 @@
 		"value": "雙方隊伍已被交換"
 	},
 	{
+		"key": "The Last Door will open in %d seconds!",
+		"value": "最後一扇門將在%d秒後打開!"
+	},
+	{
 		"key": "The blue flag was captured by '%s'",
 		"value": "藍隊旗幟被 '%s' 奪取"
 	},
@@ -155,6 +163,10 @@
 	{
 		"key": "The red flag was captured by '%s' (%.2f seconds)",
 		"value": "紅隊旗幟被 '%s' 奪取（%.2f秒）"
+	},
+	{
+		"key": "This round finishes in: %s",
+		"value": "本回合用時%s完成"
 	},
 	{
 		"key": "Vote aborted",

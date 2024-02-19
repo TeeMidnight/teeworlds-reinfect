@@ -49,6 +49,15 @@ enum
 	TILE_DEATH,
 	TILE_NOHOOK,
 
+	// put in switch layer
+	TILE_LASTSWITCH=22,
+	TILE_LASTDOOR,
+	TILE_DOORSWITCH,
+	TILE_DOOR,
+
+	// in normal layer
+	TILE_FINISH=34,
+
 	TILEFLAG_VFLIP=1,
 	TILEFLAG_HFLIP=2,
 	TILEFLAG_OPAQUE=4,
@@ -56,6 +65,7 @@ enum
 
 	LAYERFLAG_DETAIL=1,
 	TILESLAYERFLAG_GAME=1,
+	TILESLAYERFLAG_SWITCH = 16,
 
 	ENTITY_OFFSET=255-16*4,
 };
@@ -169,7 +179,22 @@ struct CMapItemLayerTilemap
 	int m_Data;
 
 	int m_aName[3];
+
+	// DDRace
+	int m_Tele; // unused
+	int m_Speedup; // unused
+	int m_Front; // unused
+	int m_Switch; // used
 } ;
+
+class CSwitchTile
+{
+public:
+	unsigned char m_Number;
+	unsigned char m_Type;
+	unsigned char m_Flags;
+	unsigned char m_Delay;
+};
 
 struct CMapItemLayerQuads
 {

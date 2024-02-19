@@ -51,6 +51,8 @@ CCharacter::CCharacter(CGameWorld *pWorld)
 	m_Armor = 0;
 	m_TriggeredEvents = 0;
 
+	m_MaxHealth = 10;
+
 	for(int i = 0; i < NUM_WEAPONS; i ++)
 	{
 		m_apWeapons[i] = nullptr;
@@ -455,7 +457,7 @@ void CCharacter::ResetInput()
 void CCharacter::Tick()
 {
 	m_Core.m_Input = m_Input;
-	m_Core.Tick(true);
+	m_Core.Tick(true, true);
 
 	// handle leaving gamelayer
 	if(GameLayerClipped(m_Pos))
@@ -474,8 +476,8 @@ void CCharacter::TickDefered()
 	{
 		CWorldCore TempWorld;
 		m_ReckoningCore.Init(&TempWorld, GameServer()->Collision());
-		m_ReckoningCore.Tick(false);
-		m_ReckoningCore.Move();
+		m_ReckoningCore.Tick(false, true);
+		m_ReckoningCore.Move(true);
 		m_ReckoningCore.Quantize();
 	}
 
@@ -490,7 +492,7 @@ void CCharacter::TickDefered()
 	vec2 StartVel = m_Core.m_Vel;
 	bool StuckBefore = GameServer()->Collision()->TestBox(m_Core.m_Pos, ColBox);
 
-	m_Core.Move();
+	m_Core.Move(false);
 
 	bool StuckAfterMove = GameServer()->Collision()->TestBox(m_Core.m_Pos, ColBox);
 	m_Core.Quantize();
@@ -584,11 +586,17 @@ void CCharacter::TickPaused()
 		++m_EmoteStop;
 }
 
+void CCharacter::SetMaxHealth(int Health)
+{
+	m_MaxHealth = maximum(1, Health);
+	m_Health = clamp(m_Health, 0, m_MaxHealth);
+}
+
 bool CCharacter::IncreaseHealth(int Amount)
 {
-	if(m_Health >= 10)
+	if(m_Health >= m_MaxHealth)
 		return false;
-	m_Health = clamp(m_Health+Amount, 0, 10);
+	m_Health = clamp(m_Health+Amount, 0, m_MaxHealth);
 	return true;
 }
 
@@ -803,7 +811,7 @@ void CCharacter::Snap(int SnappingClient)
 	if(m_pPlayer->GetCID() == SnappingClient || SnappingClient == -1 ||
 		(!Config()->m_SvStrictSpectateMode && m_pPlayer->GetCID() == GameServer()->m_apPlayers[SnappingClient]->GetSpectatorID()))
 	{
-		Character.m_Health = m_Health;
+		Character.m_Health = (int)(m_Health * 10.0f / (float) m_MaxHealth);
 		Character.m_Armor = m_Armor;
 		if(m_ActiveWeapon == WEAPON_NINJA)
 			Character.m_AmmoCount = m_Ninja.m_ActivationTick + g_pData->m_Weapons.m_Ninja.m_Duration * Server()->TickSpeed() / 1000;

@@ -18,6 +18,7 @@ CCollision::CCollision()
 	m_Width = 0;
 	m_Height = 0;
 	m_pLayers = 0;
+	m_pSwitch = 0;
 }
 
 void CCollision::Init(class CLayers *pLayers)
@@ -27,45 +28,50 @@ void CCollision::Init(class CLayers *pLayers)
 	m_Height = m_pLayers->GameLayer()->m_Height;
 	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
 
-	for(int i = 0; i < m_Width*m_Height; i++)
+	if(m_pLayers->SwitchLayer())
 	{
-		int Index = m_pTiles[i].m_Index;
-
-		if(Index > 128)
-			continue;
-
-		switch(Index)
-		{
-		case TILE_DEATH:
-			m_pTiles[i].m_Index = COLFLAG_DEATH;
-			break;
-		case TILE_SOLID:
-			m_pTiles[i].m_Index = COLFLAG_SOLID;
-			break;
-		case TILE_NOHOOK:
-			m_pTiles[i].m_Index = COLFLAG_SOLID|COLFLAG_NOHOOK;
-			break;
-		default:
-			m_pTiles[i].m_Index = 0;
-		}
+		unsigned int Size = m_pLayers->Map()->GetDataSize(m_pLayers->SwitchLayer()->m_Switch);
+		if(Size >= (size_t)m_Width * m_Height * sizeof(CSwitchTile))
+			m_pSwitch = static_cast<CSwitchTile *>(m_pLayers->Map()->GetData(m_pLayers->SwitchLayer()->m_Switch));
 	}
 }
 
-int CCollision::GetTile(int x, int y) const
+int CCollision::GetTile(int x, int y, bool NoEntities) const
 {
 	int Nx = clamp(x/32, 0, m_Width-1);
 	int Ny = clamp(y/32, 0, m_Height-1);
 
-	return m_pTiles[Ny*m_Width+Nx].m_Index > 128 ? 0 : m_pTiles[Ny*m_Width+Nx].m_Index;
+	if(!NoEntities)
+	{
+		for(auto& Rect : m_CollisionRects)
+		{
+			const CCollisionRect *pRect = &Rect.second;
+			if(x >= pRect->m_Pos.x - pRect->m_Size.x / 2.0f && x <= pRect->m_Pos.x + pRect->m_Size.x / 2.0f &&
+				y >= pRect->m_Pos.y - pRect->m_Size.y / 2.0f && y <= pRect->m_Pos.y + pRect->m_Size.y / 2.0f)
+			{
+				return pRect->m_Flag;
+			}
+		}
+	}
+
+	int Flag = 0;
+	if(m_pTiles[Ny*m_Width+Nx].m_Index == TILE_SOLID)
+		Flag |= COLFLAG_SOLID;
+	if(m_pTiles[Ny*m_Width+Nx].m_Index == TILE_NOHOOK)
+		Flag |= COLFLAG_SOLID | COLFLAG_NOHOOK;
+	if(m_pTiles[Ny*m_Width+Nx].m_Index == TILE_DEATH)
+		Flag |= COLFLAG_DEATH;
+
+	return Flag;
 }
 
-bool CCollision::IsTile(int x, int y, int Flag) const
+bool CCollision::IsTile(int x, int y, int Flag, bool NoEntities) const
 {
-	return GetTile(x, y)&Flag;
+	return GetTile(x, y, NoEntities)&Flag;
 }
 
 // TODO: rewrite this smarter!
-int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision) const
+int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision, bool NoEntities) const
 {
 	const int End = distance(Pos0, Pos1)+1;
 	const float InverseEnd = 1.0f/End;
@@ -74,13 +80,13 @@ int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *p
 	for(int i = 0; i <= End; i++)
 	{
 		vec2 Pos = mix(Pos0, Pos1, i*InverseEnd);
-		if(CheckPoint(Pos.x, Pos.y))
+		if(CheckPoint(Pos.x, Pos.y, COLFLAG_SOLID, NoEntities))
 		{
 			if(pOutCollision)
 				*pOutCollision = Pos;
 			if(pOutBeforeCollision)
 				*pOutBeforeCollision = Last;
-			return GetCollisionAt(Pos.x, Pos.y);
+			return GetCollisionAt(Pos.x, Pos.y, NoEntities);
 		}
 		Last = Pos;
 	}
@@ -92,17 +98,17 @@ int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *p
 }
 
 // TODO: OPT: rewrite this smarter!
-void CCollision::MovePoint(vec2 *pInoutPos, vec2 *pInoutVel, float Elasticity, int *pBounces) const
+void CCollision::MovePoint(vec2 *pInoutPos, vec2 *pInoutVel, float Elasticity, int *pBounces, bool NoEntities) const
 {
 	if(pBounces)
 		*pBounces = 0;
 
 	vec2 Pos = *pInoutPos;
 	vec2 Vel = *pInoutVel;
-	if(CheckPoint(Pos + Vel))
+	if(CheckPoint(Pos + Vel, NoEntities))
 	{
 		int Affected = 0;
-		if(CheckPoint(Pos.x + Vel.x, Pos.y))
+		if(CheckPoint(Pos.x + Vel.x, Pos.y, NoEntities))
 		{
 			pInoutVel->x *= -Elasticity;
 			if(pBounces)
@@ -110,7 +116,7 @@ void CCollision::MovePoint(vec2 *pInoutPos, vec2 *pInoutVel, float Elasticity, i
 			Affected++;
 		}
 
-		if(CheckPoint(Pos.x, Pos.y + Vel.y))
+		if(CheckPoint(Pos.x, Pos.y + Vel.y, NoEntities))
 		{
 			pInoutVel->y *= -Elasticity;
 			if(pBounces)
@@ -130,21 +136,21 @@ void CCollision::MovePoint(vec2 *pInoutPos, vec2 *pInoutVel, float Elasticity, i
 	}
 }
 
-bool CCollision::TestBox(vec2 Pos, vec2 Size, int Flag) const
+bool CCollision::TestBox(vec2 Pos, vec2 Size, int Flag, bool NoEntities) const
 {
 	Size *= 0.5f;
-	if(CheckPoint(Pos.x-Size.x, Pos.y-Size.y, Flag))
+	if(CheckPoint(Pos.x-Size.x, Pos.y-Size.y, Flag, NoEntities))
 		return true;
-	if(CheckPoint(Pos.x+Size.x, Pos.y-Size.y, Flag))
+	if(CheckPoint(Pos.x+Size.x, Pos.y-Size.y, Flag, NoEntities))
 		return true;
-	if(CheckPoint(Pos.x-Size.x, Pos.y+Size.y, Flag))
+	if(CheckPoint(Pos.x-Size.x, Pos.y+Size.y, Flag, NoEntities))
 		return true;
-	if(CheckPoint(Pos.x+Size.x, Pos.y+Size.y, Flag))
+	if(CheckPoint(Pos.x+Size.x, Pos.y+Size.y, Flag, NoEntities))
 		return true;
 	return false;
 }
 
-void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elasticity, bool *pDeath) const
+void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elasticity, bool *pDeath, bool NoEntities) const
 {
 	// do the move
 	vec2 Pos = *pInoutPos;
@@ -170,18 +176,18 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elas
 				*pDeath = true;
 			}
 
-			if(TestBox(vec2(NewPos.x, NewPos.y), Size))
+			if(TestBox(vec2(NewPos.x, NewPos.y), Size, COLFLAG_SOLID, NoEntities))
 			{
 				int Hits = 0;
 
-				if(TestBox(vec2(Pos.x, NewPos.y), Size))
+				if(TestBox(vec2(Pos.x, NewPos.y), Size, COLFLAG_SOLID, NoEntities))
 				{
 					NewPos.y = Pos.y;
 					Vel.y *= -Elasticity;
 					Hits++;
 				}
 
-				if(TestBox(vec2(NewPos.x, Pos.y), Size))
+				if(TestBox(vec2(NewPos.x, Pos.y), Size, COLFLAG_SOLID, NoEntities))
 				{
 					NewPos.x = Pos.x;
 					Vel.x *= -Elasticity;
@@ -205,4 +211,21 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elas
 
 	*pInoutPos = Pos;
 	*pInoutVel = Vel;
+}
+
+int CCollision::AddCollisionRect(CCollisionRect Rect)
+{
+	m_CollisionRects[m_CollisionRectsIndex ++] = Rect;
+	return m_CollisionRectsIndex - 1;
+}
+
+void CCollision::RemoveCollisionRect(int Index)
+{
+	m_CollisionRects.erase(Index);
+}
+
+void CCollision::ClearCollisionRects()
+{
+	m_CollisionRectsIndex = 0;
+	m_CollisionRects.clear();
 }

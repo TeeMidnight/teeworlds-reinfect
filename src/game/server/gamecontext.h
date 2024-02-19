@@ -87,6 +87,7 @@ public:
 	class INetConverter *NetConverter() { return m_pNetConverter; }
 	CCollision *Collision() { return &m_Collision; }
 	CTuningParams *Tuning() { return &m_Tuning; }
+	CLayers *Layers() { return &m_Layers; }
 
 	CGameContext();
 	~CGameContext();

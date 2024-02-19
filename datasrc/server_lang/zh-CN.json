@@ -109,6 +109,10 @@
 		"value": "任何时间, 都是僵尸时间..."
 	},
 	{
+		"key": "Door %d will open in %d seconds!",
+		"value": "%d号门将在%d秒后打开!"
+	},
+	{
 		"key": "Invalid spectator id used",
 		"value": "无效的旁观ID"
 	},
@@ -141,6 +145,10 @@
 		"value": "双方队伍已被交换"
 	},
 	{
+		"key": "The Last Door will open in %d seconds!",
+		"value": "最后一扇门将在%d秒后打开!"
+	},
+	{
 		"key": "The blue flag was captured by '%s'",
 		"value": "蓝队旗帜被 '%s' 夺取"
 	},
@@ -155,6 +163,10 @@
 	{
 		"key": "The red flag was captured by '%s' (%.2f seconds)",
 		"value": "红队旗帜被 '%s' 夺取（%.2f秒）"
+	},
+	{
+		"key": "This round finishes in: %s",
+		"value": "本回合用时%s完成"
 	},
 	{
 		"key": "Vote aborted",

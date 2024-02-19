@@ -230,6 +230,8 @@ public:
 
 	virtual bool PlayerPickable(int ClientID) { return true; }
 
+	virtual void OnMapInit(int Width, int Height) {}
+
 	int GetRealPlayerNum() const { return m_aTeamSize[TEAM_RED]+m_aTeamSize[TEAM_BLUE]; }
 	int GetStartTeam();
 

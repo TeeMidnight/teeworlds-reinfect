@@ -16,6 +16,8 @@ class CLayers
 	CMapItemLayerTilemap *m_pGameLayer;
 	class IMap *m_pMap;
 
+	CMapItemLayerTilemap *m_pSwitchLayer;
+
 	void InitGameLayer();
 	void InitTilemapSkip();
 
@@ -29,6 +31,8 @@ public:
 	CMapItemLayerTilemap *GameLayer() const { return m_pGameLayer; }
 	CMapItemGroup *GetGroup(int Index) const;
 	CMapItemLayer *GetLayer(int Index) const;
+
+	CMapItemLayerTilemap *SwitchLayer() const { return m_pSwitchLayer; }
 };
 
 #endif

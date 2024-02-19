@@ -53,6 +53,8 @@ public:
 	bool Spawn(class CPlayer *pPlayer, vec2 Pos);
 	bool Remove();
 
+	void SetMaxHealth(int Health);
+
 	bool IncreaseHealth(int Amount);
 	bool IncreaseArmor(int Amount);
 
@@ -113,6 +115,8 @@ private:
 	int m_Health;
 	int m_Armor;
 
+	int m_MaxHealth;
+
 	int m_TriggeredEvents;
 
 	// ninja
@@ -138,6 +142,7 @@ public:
 	WeaponStat *WeaponStat(int Weapon) { return &m_aWeapons[Weapon]; }
 	*/
 	IWeapon *Weapons(int Weapon) { return m_apWeapons[Weapon]; }
+	int GetMaxHealth() const { return m_MaxHealth; }
 };
 
 #endif

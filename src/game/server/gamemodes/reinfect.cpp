@@ -375,7 +375,7 @@ void CGameControllerReinfect::OnPlayerInfoChange(CPlayer *pPlayer)
 void CGameControllerReinfect::OnCharacterSpawn(CCharacter *pChr)
 {
 	if(IsInfect(pChr->GetPlayer()->GetCID()))
-		pChr->SetMaxHealth(20);
+		pChr->SetMaxHealth(10);
 	// default health
 	pChr->IncreaseHealth(pChr->GetMaxHealth());
 

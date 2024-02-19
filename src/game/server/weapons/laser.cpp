@@ -6,7 +6,7 @@ CWeaponLaser::CWeaponLaser(int Owner) : IWeapon(Owner)
 {
     SetFireDelay(1500); // 1.5s
     SetMaxammo(2);
-    SetDamage(10);
+    SetDamage(15);
     SetAmmo(2);
     
     SetType(WEAPON_LASER);

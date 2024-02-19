@@ -6,7 +6,7 @@ CWeaponGrenade::CWeaponGrenade(int Owner) : IWeapon(Owner)
 {
     SetFireDelay(1500); // 1.5s
     SetMaxammo(2);
-    SetDamage(8);
+    SetDamage(10);
     SetAmmo(2);
     
     SetType(WEAPON_GRENADE);

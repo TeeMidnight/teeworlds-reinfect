@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <generated/server_data.h>
+#include <game/server/gamecontroller.h>
 #include <game/server/gamecontext.h>
 
 #include "character.h"
@@ -28,6 +29,11 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	CCharacter *pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, pOwnerChar);
 	if(!pHit)
 		return false;
+
+	if(pOwnerChar && pHit && GameServer()->m_pController->IsFriendlyFire(pOwnerChar->GetPlayer()->GetCID(), pHit->GetPlayer()->GetCID()))
+	{
+		return false;
+	}
 
 	m_From = From;
 	m_Pos = At;

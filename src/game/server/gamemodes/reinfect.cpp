@@ -187,6 +187,10 @@ void CGameControllerReinfect::ChooseInfects()
 		{
 			vHumansID.push_back(i); // humans
 		}
+		if(GameServer()->m_apPlayers[i]->GetCharacter())
+		{
+			GameServer()->m_apPlayers[i]->GetCharacter()->Core()->m_Infect = IsInfect(i);
+		}
 		Players ++;
 	}
 

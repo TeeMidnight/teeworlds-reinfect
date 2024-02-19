@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <game/server/gamecontext.h>
+#include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 
 #include "character.h"
@@ -75,6 +76,11 @@ void CProjectile::Tick()
 	int Collide = GameServer()->Collision()->IntersectLine(PrevPos, CurPos, &CurPos, 0);
 	CCharacter *OwnerChar = GameServer()->GetPlayerChar(m_Owner);
 	CCharacter *TargetChr = GameWorld()->IntersectCharacter(PrevPos, CurPos, 6.0f, CurPos, OwnerChar);
+
+	if(OwnerChar && TargetChr && GameServer()->m_pController->IsFriendlyFire(OwnerChar->GetPlayer()->GetCID(), TargetChr->GetPlayer()->GetCID()))
+	{
+		TargetChr = nullptr;
+	}
 
 	m_LifeSpan--;
 

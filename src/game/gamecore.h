@@ -167,6 +167,7 @@ public:
 	int m_Angle;
 
 	bool m_Death;
+	bool m_Infect;
 
 	CNetObj_PlayerInput m_Input;
 

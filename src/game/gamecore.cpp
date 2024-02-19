@@ -219,6 +219,9 @@ void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 				if(!pCharCore || pCharCore == this)
 					continue;
 
+				if(pCharCore->m_Infect == m_Infect)
+					continue;
+
 				vec2 ClosestPoint = closest_point_on_line(m_HookPos, NewPos, pCharCore->m_Pos);
 				if(distance(pCharCore->m_Pos, ClosestPoint) < PHYS_SIZE+2.0f)
 				{
@@ -317,6 +320,9 @@ void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 			if(pCharCore == this) // || !(p->flags&FLAG_ALIVE)
 				continue; // make sure that we don't nudge our self
 
+			if(pCharCore->m_Infect == m_Infect)
+				continue;
+
 			// handle player <-> player collision
 			float Distance = distance(m_Pos, pCharCore->m_Pos);
 			vec2 Dir = normalize(m_Pos - pCharCore->m_Pos);
@@ -399,6 +405,10 @@ void CCharacterCore::Move(bool NoEntities)
 				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
 				if(!pCharCore || pCharCore == this)
 					continue;
+
+				if(pCharCore->m_Infect == m_Infect)
+					continue;
+
 				float D = distance(Pos, pCharCore->m_Pos);
 				if(D < PHYS_SIZE && D >= 0.0f)
 				{

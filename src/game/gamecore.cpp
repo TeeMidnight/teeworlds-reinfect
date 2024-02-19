@@ -85,6 +85,7 @@ void CCharacterCore::Reset()
 	m_Jumped = 0;
 	m_TriggeredEvents = 0;
 	m_Death = false;
+	m_Infect = false;
 }
 
 void CCharacterCore::Tick(bool UseInput, bool NoEntities)
@@ -210,7 +211,7 @@ void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 		}
 
 		// Check against other players first
-		if(m_pWorld && m_pWorld->m_Tuning.m_PlayerHooking)
+		if(m_pWorld)
 		{
 			float Distance = 0.0f;
 			for(int i = 0; i < MAX_CLIENTS; i++)
@@ -219,7 +220,7 @@ void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 				if(!pCharCore || pCharCore == this)
 					continue;
 
-				if(pCharCore->m_Infect == m_Infect)
+				if(pCharCore->m_Infect == m_Infect && !m_pWorld->m_Tuning.m_PlayerHooking)
 					continue;
 
 				vec2 ClosestPoint = closest_point_on_line(m_HookPos, NewPos, pCharCore->m_Pos);
@@ -320,13 +321,13 @@ void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 			if(pCharCore == this) // || !(p->flags&FLAG_ALIVE)
 				continue; // make sure that we don't nudge our self
 
-			if(pCharCore->m_Infect == m_Infect)
+			if(pCharCore->m_Infect == m_Infect && !m_pWorld->m_Tuning.m_PlayerHooking)
 				continue;
 
 			// handle player <-> player collision
 			float Distance = distance(m_Pos, pCharCore->m_Pos);
 			vec2 Dir = normalize(m_Pos - pCharCore->m_Pos);
-			if(m_pWorld->m_Tuning.m_PlayerCollision && Distance < PHYS_SIZE*1.25f && Distance > 0.0f)
+			if((pCharCore->m_Infect != m_Infect || (pCharCore->m_Infect == m_Infect && !m_pWorld->m_Tuning.m_PlayerCollision)) && Distance < PHYS_SIZE*1.25f && Distance > 0.0f)
 			{
 				float a = (PHYS_SIZE*1.45f - Distance);
 				float Velocity = 0.5f;
@@ -341,7 +342,7 @@ void CCharacterCore::Tick(bool UseInput, bool NoEntities)
 			}
 
 			// handle hook influence
-			if(m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
+			if(m_HookedPlayer == i)
 			{
 				if(Distance > PHYS_SIZE*1.50f) // TODO: fix tweakable variable
 				{
@@ -390,37 +391,34 @@ void CCharacterCore::Move(bool NoEntities)
 
 	m_Vel.x = m_Vel.x*(1.0f/RampValue);
 
-	if(m_pWorld->m_Tuning.m_PlayerCollision)
+	// check player collision
+	float Distance = distance(m_Pos, NewPos);
+	int End = Distance+1;
+	vec2 LastPos = m_Pos;
+	for(int i = 0; i < End; i++)
 	{
-		// check player collision
-		float Distance = distance(m_Pos, NewPos);
-		int End = Distance+1;
-		vec2 LastPos = m_Pos;
-		for(int i = 0; i < End; i++)
+		float a = i/Distance;
+		vec2 Pos = mix(m_Pos, NewPos, a);
+		for(int p = 0; p < MAX_CLIENTS; p++)
 		{
-			float a = i/Distance;
-			vec2 Pos = mix(m_Pos, NewPos, a);
-			for(int p = 0; p < MAX_CLIENTS; p++)
+			CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
+			if(!pCharCore || pCharCore == this)
+				continue;
+
+			if(pCharCore->m_Infect == m_Infect && !m_pWorld->m_Tuning.m_PlayerCollision)
+				continue;
+
+			float D = distance(Pos, pCharCore->m_Pos);
+			if(D < PHYS_SIZE && D >= 0.0f)
 			{
-				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
-				if(!pCharCore || pCharCore == this)
-					continue;
-
-				if(pCharCore->m_Infect == m_Infect)
-					continue;
-
-				float D = distance(Pos, pCharCore->m_Pos);
-				if(D < PHYS_SIZE && D >= 0.0f)
-				{
-					if(a > 0.0f)
-						m_Pos = LastPos;
-					else if(distance(NewPos, pCharCore->m_Pos) > D)
-						m_Pos = NewPos;
-					return;
-				}
+				if(a > 0.0f)
+					m_Pos = LastPos;
+				else if(distance(NewPos, pCharCore->m_Pos) > D)
+					m_Pos = NewPos;
+				return;
 			}
-			LastPos = Pos;
 		}
+		LastPos = Pos;
 	}
 
 	m_Pos = NewPos;

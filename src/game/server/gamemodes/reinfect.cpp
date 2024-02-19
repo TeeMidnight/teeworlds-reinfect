@@ -396,6 +396,8 @@ void CGameControllerReinfect::OnPlayerConnect(CPlayer *pPlayer)
 {
 	pPlayer->m_TempInfos = pPlayer->m_TeeInfos;
 
+	m_Infects[pPlayer->GetCID()] = false; // set not infect
+
 	if(IsInfection())
 		InfectPlayer(pPlayer->GetCID());
 	

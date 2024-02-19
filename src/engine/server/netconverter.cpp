@@ -349,7 +349,10 @@ bool CNetConverter::DeepConvertClientMsg6(CMsgUnpacker *pItem, int& Type, bool S
             CTeeInfo TeeInfo(pSkin, UseCustomColor, ColorBody, ColorFeet);
             TeeInfo.FromSix();
 
+            /*
             if(TeeInfo == pPlayer->m_TeeInfos)
+            */
+            if(TeeInfo == pPlayer->m_TempInfos)
             {
                 return false;
             }
@@ -368,7 +371,10 @@ bool CNetConverter::DeepConvertClientMsg6(CMsgUnpacker *pItem, int& Type, bool S
                 Msg7.AddInt(TeeInfo.m_aSkinPartColors[i]);
 			}
 
+            /*
             pPlayer->m_TeeInfos = TeeInfo;
+            */
+            pPlayer->m_TempInfos = TeeInfo;
             
             *pItem = CMsgUnpacker(Msg7.Data(), Msg7.Size());
             Type = NETMSGTYPE_CL_SKINCHANGE;
